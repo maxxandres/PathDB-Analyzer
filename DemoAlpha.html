@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PathDB Alpha - Query Tree Explorer</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Graph visualization library -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #mynetwork,
+        #treeNetwork {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+        }
+
+        .path-row.active {
+            background-color: #eff6ff;
+            border-left: 3px solid #2563eb;
+        }
+
+        .view-btn.active {
+            background-color: #2563eb !important;
+            color: white !important;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+        }
+
+        .algebra-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#1e293b',
+                        accent: '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 h-screen flex overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-96 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
+
+        <!-- Sidebar header -->
+        <div class="p-6 border-b border-gray-100 bg-gradient-to-br from-blue-50 to-indigo-50">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary/10 p-2 rounded-lg">
+                    <i data-lucide="network" class="text-primary w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-gray-800 text-lg">PathDB Alpha</h1>
+                    <p class="text-xs text-gray-500">Algebra-Based Query Explorer</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Algebra Info Banner -->
+        <div class="mx-6 mt-4 algebra-info text-white p-3 rounded-lg shadow-md">
+            <div class="flex items-start gap-2">
+                <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+                <div class="text-xs">
+                    <p class="font-semibold mb-1">Path Algebra</p>
+                    <p class="text-white/90">PathDB evaluates RPQs using operators: <b>Selection</b>, <b>Join</b> and
+                        <b>Union</b>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <div class="p-6 flex-1 overflow-y-auto space-y-6">
+
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <i data-lucide="list-filter" class="w-4 h-4 text-gray-400"></i>
+                    Query Type
+                </label>
+                <div class="relative">
+                    <select id="queryType" onchange="updateUI()"
+                        class="w-full pl-3 pr-10 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer shadow-sm">
+                        <option value="shortest">Co-authorship path between two authors</option>
+                        <option value="simple">3 simple paths between two authors</option>
+                        <option value="cycles">Co-Author cycle</option>
+                        <option value="erdos">Erdős Distance</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="border-gray-100">
+
+            <div class="space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Source Author (A)</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                        <input type="text" id="inputA" value="Renzo Angles"
+                            class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow"
+                            placeholder="Author name...">
+                    </div>
+                </div>
+
+                <div class="space-y-1.5" id="containerB">
+                    <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Target Author (B)</label>
+                    <div class="relative">
+                        <i data-lucide="user-check" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                        <input type="text" id="inputB" value="Paul Erdös"
+                            class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow bg-white">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 bg-slate-900 rounded-lg p-4 shadow-inner border border-slate-800">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-mono text-slate-400">Query Preview</span>
+                    <div class="flex gap-1.5">
+                        <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                        <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
+                        <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                    </div>
+                </div>
+                <div class="font-mono text-xs text-emerald-400 break-words leading-relaxed" id="queryPreview">
+                    match p=...
+                </div>
+            </div>
+
+        </div>
+
+        <div class="p-6 border-t border-gray-200 bg-white">
+            <button onclick="runQuery()" id="btnRun"
+                class="w-full bg-primary hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:transform active:scale-95">
+                <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                Run Query
+            </button>
+        </div>
+    </aside>
+
+    <!-- Results panel-->
+    <main class="flex-1 flex flex-col relative bg-gray-50/50">
+
+        <!-- Header with view toggle -->
+        <header class="bg-white h-16 border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10">
+            <div class="flex items-center gap-2 text-sm text-gray-500">
+                <span>Visualization</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                <span class="font-medium text-gray-900" id="currentModeTitle">Waiting...</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- View Toggle Buttons -->
+                <div id="viewToggle" class="hidden flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+                    <button onclick="switchView('graph')" id="viewGraphBtn"
+                        class="view-btn active px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-transparent text-gray-700">
+                        <i data-lucide="share-2" class="w-3 h-3 inline mr-1"></i>
+                        Graph
+                    </button>
+                    <button onclick="switchView('tree')" id="viewTreeBtn"
+                        class="view-btn px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-transparent text-gray-700">
+                        <i data-lucide="git-branch" class="w-3 h-3 inline mr-1"></i>
+                        Query Tree
+                </div>
+                <span
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    PathDB Online
+                </span>
+            </div>
+        </header>
+
+        <div class="flex-1 relative overflow-hidden">
+
+            <!-- Empty State -->
+            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-0">
+                <div class="bg-white p-6 rounded-full shadow-sm mb-6 border border-gray-100">
+                    <i data-lucide="search" class="w-12 h-12 text-gray-300"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">Ready to Explore PathDB Algebra</h2>
+                <p class="text-gray-500 max-w-md">
+                    Select a query type and run it to see how PathDB decomposes RPQs into algebraic operators.
+                </p>
+            </div>
+
+            <!-- GRAPH VIEW (original) -->
+            <div id="graphView" class="hidden absolute inset-0 flex flex-col fade-in bg-gray-100">
+
+                <div class="absolute top-4 left-4 flex flex-col gap-4 z-10 pointer-events-none max-h-[80%]">
+
+                    <!-- Stats Card -->
+                    <div
+                        class="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-gray-200 pointer-events-auto flex gap-6 w-fit">
+                        <div>
+                            <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Execution
+                                Time</div>
+                            <div class="text-xl font-bold text-gray-800 flex items-baseline">
+                                <span id="execTime">45</span><span
+                                    class="text-sm text-gray-400 font-normal ml-1">ms</span>
+                            </div>
+                        </div>
+                        <div class="w-px bg-gray-200"></div>
+                        <div>
+                            <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Total Paths
+                            </div>
+                            <div class="text-xl font-bold text-gray-800" id="pathLengthDisplay">-</div>
+                        </div>
+                    </div>
+
+                    <!-- PATH LISTS-->
+                    <div id="pathsListPanel"
+                        class="bg-white/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200 pointer-events-auto w-64 overflow-hidden flex flex-col hidden">
+                        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500">FOUND
+                                PATHS</span>
+                            <span class="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded"
+                                id="pathsCountBadge">0</span>
+                        </div>
+                        <div class="overflow-y-auto max-h-60" id="pathsListContent">
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- top right, legend and details -->
+                <div class="absolute top-4 right-4 flex flex-col gap-4 items-end pointer-events-none z-10">
+
+                    <!-- Legend -->
+                    <div
+                        class="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-xl shadow-lg border border-gray-200 w-52 pointer-events-auto">
+                        <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2">Node Legend</div>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-blue-500 shadow-sm"></span>
+                                <span class="text-xs font-medium text-gray-600">Start (Author A)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-gray-400 shadow-sm"></span>
+                                <span class="text-xs font-medium text-gray-600">Intermediate</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-green-500 shadow-sm"></span>
+                                <span class="text-xs font-medium text-gray-600">Target (Author B)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DETAILS PANEL -->
+                    <div id="detailsPanel"
+                        class="hidden bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-xl border border-primary/20 w-64 pointer-events-auto transition-all duration-300">
+                        <div class="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-primary"
+                                id="detailsType">DETAILS</span>
+                            <button onclick="closeDetails()" class="text-gray-400 hover:text-gray-600">
+                                <i data-lucide="x" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                        <div id="detailsContent" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <!-- Canvas -->
+                <div id="mynetwork" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+
+                <!-- Footer Summary -->
+                <div
+                    class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-6 py-2 rounded-full shadow-lg border border-gray-200 text-sm text-gray-600 font-medium pointer-events-auto z-10">
+                    <span id="resultSummary">Visualizing results...</span>
+                </div>
+            </div>
+
+            <!-- QUERY TREE VIEW -->
+            <div id="treeView" class="hidden absolute inset-0 flex flex-col fade-in bg-white">
+
+                <!-- Tree Header -->
+                <div class="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-1">Query Algebra Decomposition</h3>
+                            <p class="text-sm text-gray-600">Visualization of path algebra operators</p>
+                        </div>
+                        <div class="bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200">
+                            <span class="text-xs text-gray-500">Execution Tree</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operator Legend -->
+                <div class="px-6 py-3 bg-gray-50 border-b border-gray-100 flex gap-4 text-xs">
+                    <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-blue-100 border border-blue-300"></div>
+                        <span class="text-gray-600"><b>Selection</b>: Filters nodes</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-pink-100 border border-pink-300"></div>
+                        <span class="text-gray-600"><b>Join</b>: Combines paths</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-purple-100 border border-purple-300"></div>
+                        <span class="text-gray-600"><b>Union</b>: Unites sets</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-yellow-100 border border-yellow-300"></div>
+                        <span class="text-gray-600"><b>Limit</b>: Limits results</span>
+                    </div>
+                </div>
+
+                <!-- Tree Canvas -->
+                <div id="treeNetwork" class="flex-1 bg-gray-50"></div>
+
+                <!-- Execution Controls -->
+                <div class="p-4 border-t border-gray-200 bg-white flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <button onclick="playExecution()"
+                            class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 text-sm">
+                            <i data-lucide="play" class="w-4 h-4"></i>
+                            Play Execution
+                        </button>
+                        <button onclick="stepExecution()"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all flex items-center gap-2 text-sm">
+                            <i data-lucide="step-forward" class="w-4 h-4"></i>
+                            Step
+                        </button>
+                        <button onclick="resetExecution()"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all flex items-center gap-2 text-sm">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                            Reset
+                        </button>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        <span class="font-medium">Step:</span> <span id="executionStep">0</span> / <span
+                            id="totalSteps">0</span>
+                    </div>
+                </div>
+            </div>
+
+
+
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // Templates 
+        const templates = {
+            shortest: {
+                label: "Shortest Co-authorship Path",
+                query: "MATCH p= (a)-[COAUTHOR+]{..6}->(b) WHERE a.name= '$A' and b.name = '$B' RETURN p LIMIT 1;"
+            },
+            simple: {
+                label: "Simple Paths (Limit 3)",
+                query: "MATCH SIMPLE p= (a)-[COAUTHOR+]{..3}->(b) WHERE a.name= '$A' and b.name = '$B' RETURN p, p.LENGTH ;"
+            },
+            cycles: {
+                label: "Co-authorship Cycles",
+                query: "MATCH p= (a)-[COAUTHOR+]{..3}->(b) WHERE a.name= '$A' and b.name = '$A' RETURN p, p.LENGTH ;"
+            },
+            erdos: {
+                label: "Erdős Number Analysis",
+                query: "MATCH p= (a)-[COAUTHOR+]{..6}->(b) WHERE a.name= '$A' and b.name = 'Paul Erdös' RETURN p.LENGTH limit 1;"
+            }
+        };
+
+        // Query Tree Templates
+        const queryTreeTemplates = {
+            shortest: {
+                title: "Shortest Path Decomposition",
+                nodes: [
+                    { id: 1, label: "Selection\na.name='$A'", level: 0, type: 'selection', color: { background: '#dbeafe', border: '#93c5fd' }, font: { multi: true, size: 12 } },
+                    { id: 2, label: "Join\nCOAUTHOR+{..6}", level: 1, type: 'join', color: { background: '#fce7f3', border: '#f9a8d4' }, font: { multi: true, size: 12 } },
+                    { id: 3, label: "Selection\nb.name='$B'", level: 2, type: 'selection', color: { background: '#dbeafe', border: '#93c5fd' }, font: { multi: true, size: 12 } },
+                    { id: 4, label: "Limit(1)", level: 3, type: 'limit', color: { background: '#fef3c7', border: '#fcd34d' }, font: { multi: true, size: 12 } }
+                ],
+                edges: [
+                    { from: 1, to: 2, label: 'paths(1)', arrows: 'to', font: { size: 10 } },
+                    { from: 2, to: 3, label: 'paths(n)', arrows: 'to', font: { size: 10 } },
+                    { from: 3, to: 4, label: 'paths(n)', arrows: 'to', font: { size: 10 } }
+                ]
+            },
+            simple: {
+                title: "Simple Paths Decomposition",
+                nodes: [
+                    { id: 1, label: "Selection\na.name='$A'", level: 0, type: 'selection', color: { background: '#dbeafe', border: '#93c5fd' }, font: { multi: true, size: 12 } },
+                    { id: 2, label: "Join\nCOAUTHOR+{..3}", level: 1, type: 'join', color: { background: '#fce7f3', border: '#f9a8d4' }, font: { multi: true, size: 12 } },
+                    { id: 3, label: "Selection\nb.name='$B'", level: 2, type: 'selection', color: { background: '#dbeafe', border: '#93c5fd' }, font: { multi: true, size: 12 } },
+                    { id: 4, label: "Union\nall paths", level: 3, type: 'union', color: { background: '#e9d5ff', border: '#c084fc' }, font: { multi: true, size: 12 } }
+                ],
+                edges: [
+                    { from: 1, to: 2, label: 'paths(1)', arrows: 'to', font: { size: 10 } },
+                    { from: 2, to: 3, label: 'paths(n)', arrows: 'to', font: { size: 10 } },
+                    { from: 3, to: 4, label: 'paths(3)', arrows: 'to', font: { size: 10 } }
+                ]
+            },
+            cycles: {
+                title: "Cycle Detection Decomposition",
+                nodes: [
+                    { id: 1, label: "Selection\na.name='$A'", level: 0, type: 'selection', color: { background: '#dbeafe', border: '#93c5fd' }, font: { multi: true, size: 12 } },
+                    { id: 2, label: "Join\nCOAUTHOR+{..3}", level: 1, type: 'join', color: { background: '#fce7f3', border: '#f9a8d4' }, font: { multi: true, size: 12 } },
+                    { id: 3, label: "Selection\nb.name='$A'", level: 2, type: 'selection', color: { background: '#dbeafe', border: '#93c5fd' }, font: { multi: true, size: 12 } }
+                ],
+                edges: [
+                    { from: 1, to: 2, label: 'paths(1)', arrows: 'to', font: { size: 10 } },
+                    { from: 2, to: 3, label: 'cycles', arrows: 'to', font: { size: 10 } }
+                ]
+            },
+            erdos: {
+                title: "Erdős Number Decomposition",
+                nodes: [
+                    { id: 1, label: "Selection\na.name='$A'", level: 0, type: 'selection', color: { background: '#dbeafe', border: '#93c5fd' }, font: { multi: true, size: 12 } },
+                    { id: 2, label: "Join\nCOAUTHOR+{..6}", level: 1, type: 'join', color: { background: '#fce7f3', border: '#f9a8d4' }, font: { multi: true, size: 12 } },
+                    { id: 3, label: "Selection\nb.name='Erdös'", level: 2, type: 'selection', color: { background: '#dbeafe', border: '#93c5fd' }, font: { multi: true, size: 12 } },
+                    { id: 4, label: "PathLength", level: 3, type: 'limit', color: { background: '#fef3c7', border: '#fcd34d' }, font: { multi: true, size: 12 } }
+                ],
+                edges: [
+                    { from: 1, to: 2, label: 'paths(1)', arrows: 'to', font: { size: 10 } },
+                    { from: 2, to: 3, label: 'paths(n)', arrows: 'to', font: { size: 10 } },
+                    { from: 3, to: 4, label: 'distance', arrows: 'to', font: { size: 10 } }
+                ]
+            }
+        };
+
+        // Operator descriptions
+        const operatorDescriptions = {
+            selection: {
+                title: "Selection Operator (σ)",
+                description: "Filters paths based on conditions over nodes or properties.",
+                example: "σ(a.name='Renzo') selects paths where node 'a' has name 'Renzo'."
+            },
+            join: {
+                title: "Join Operator (⨝)",
+                description: "Combines existing paths with new edges using the join operator.",
+                example: "⨝(COAUTHOR+) extends paths following COAUTHOR relationships repeatedly."
+            },
+            union: {
+                title: "Union Operator (∪)",
+                description: "Unifies multiple path sets into one, eliminating duplicates.",
+                example: "P1 ∪ P2 ∪ P3 combines three path sets into one."
+            },
+            limit: {
+                title: "Limit Operator",
+                description: "Limits the number of returned paths or calculates path properties.",
+                example: "LIMIT(1) returns only the first path found."
+            }
+        };
+
+        const inputA = document.getElementById('inputA');
+        const inputB = document.getElementById('inputB');
+        const containerB = document.getElementById('containerB');
+        const queryPreview = document.getElementById('queryPreview');
+        const emptyState = document.getElementById('emptyState');
+        const graphView = document.getElementById('graphView');
+        const treeView = document.getElementById('treeView');
+        const viewToggle = document.getElementById('viewToggle');
+        const btnRun = document.getElementById('btnRun');
+        const detailsPanel = document.getElementById('detailsPanel');
+        const pathsListPanel = document.getElementById('pathsListPanel');
+        const pathsListContent = document.getElementById('pathsListContent');
+
+        let network = null;
+        let treeNetwork = null;
+        let currentData = null;
+        let currentView = 'graph';
+        let currentTreeData = null;
+        let executionStepCounter = 0;
+        let maxExecutionSteps = 0;
+
+        // View switching
+        function switchView(view) {
+            currentView = view;
+
+            // Hide all views
+            graphView.classList.add('hidden');
+            treeView.classList.add('hidden');
+
+            // Remove active from all buttons
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+
+            // Show selected view and activate button
+            if (view === 'graph') {
+                graphView.classList.remove('hidden');
+                document.getElementById('viewGraphBtn').classList.add('active');
+            } else if (view === 'tree') {
+                treeView.classList.remove('hidden');
+                document.getElementById('viewTreeBtn').classList.add('active');
+                if (currentTreeData) {
+                    setTimeout(() => renderTree(currentTreeData), 100);
+                }
+            }
+
+            lucide.createIcons();
+        }
+
+        // Mock data generator
+        function generateGraphData(type, nameA, nameB) {
+            const nodes = [];
+            const edges = [];
+            const paths = [];
+            const addedNodeIds = new Set();
+
+            const colorEnd = { background: '#22c55e', border: '#15803d' };
+            const colorMid = { background: '#ededed', border: '#dedede' };
+            const colorStart = { background: '#60a5fa', border: '#2563eb' };
+
+            const randomProps = (isNode) => {
+                if (isNode) return { "University": "Univ. of Talca", "H-Index": Math.floor(Math.random() * 50) + 5 };
+                return { "Year": 2010 + Math.floor(Math.random() * 14), "Venue": "SIGMOD" };
+            }
+
+            function addNode(id, label, color, isMain = false) {
+                if (!addedNodeIds.has(id)) {
+                    nodes.push({ id, label, color, properties: randomProps(true), size: isMain ? 30 : 20, font: isMain ? { size: 14 } : { size: 12 } });
+                    addedNodeIds.add(id);
+                }
+            }
+
+            addNode(1, nameA, colorStart, true);
+
+            if (type === 'cycles') {
+                addNode(2, "Researcher X", colorMid);
+                addNode(3, "Researcher Y", colorMid);
+
+                const pEdge1 = { from: 1, to: 2, label: "COAUTHOR", id: 'e1', properties: randomProps(false) };
+                const pEdge2 = { from: 2, to: 3, label: "COAUTHOR", id: 'e2', properties: randomProps(false) };
+                const pEdge3 = { from: 3, to: 1, label: "COAUTHOR", id: 'e3', properties: randomProps(false) };
+                edges.push(pEdge1, pEdge2, pEdge3);
+
+                paths.push({
+                    id: 0,
+                    label: "Cycle (Length 3)",
+                    nodes: [1, 2, 3],
+                    edges: ['e1', 'e2', 'e3']
+                });
+
+                return { nodes, edges, paths, summary: `Cycle detected of length 3`, pathsFound: 1 };
+            }
+
+            const targetName = (type === 'erdos') ? "Paul Erdös" : nameB;
+            addNode(999, targetName, colorEnd, true);
+
+            const pathsToGenerate = (type === 'simple') ? 3 : 1;
+
+            for (let p = 0; p < pathsToGenerate; p++) {
+                let currentPathNodes = [1];
+                let currentPathEdges = [];
+
+                let prevId = 1;
+                const intermediateNodesCount = p + 1;
+
+                for (let i = 0; i < intermediateNodesCount; i++) {
+                    const nodeId = 100 * (p + 1) + i;
+                    const edgeId = `e_${p}_${i}`;
+
+                    addNode(nodeId, `Auth ${p}-${i}`, colorMid);
+                    edges.push({ from: prevId, to: nodeId, label: "COAUTHOR", id: edgeId, properties: randomProps(false) });
+
+                    currentPathNodes.push(nodeId);
+                    currentPathEdges.push(edgeId);
+                    prevId = nodeId;
+                }
+
+                const finalEdgeId = `e_${p}_final`;
+                edges.push({ from: prevId, to: 999, label: "COAUTHOR", id: finalEdgeId, properties: randomProps(false) });
+                currentPathNodes.push(999);
+                currentPathEdges.push(finalEdgeId);
+
+                paths.push({
+                    id: p,
+                    label: `Path ${p + 1} (Length ${currentPathEdges.length})`,
+                    nodes: currentPathNodes,
+                    edges: currentPathEdges
+                });
+            }
+
+            return { nodes, edges, paths, summary: `Found ${pathsToGenerate} distinct paths.`, pathsFound: pathsToGenerate };
+        }
+
+        function drawGraph(data) {
+            currentData = data;
+            const container = document.getElementById('mynetwork');
+            const visData = {
+                nodes: new vis.DataSet(data.nodes),
+                edges: new vis.DataSet(data.edges)
+            };
+
+            const options = {
+                nodes: { shape: 'dot', borderWidth: 2, shadow: true },
+                edges: { width: 2, color: { color: '#cbd5e1', highlight: '#2563eb' }, arrows: 'to', smooth: { type: 'dynamic' } },
+                physics: { stabilization: false, barnesHut: { gravitationalConstant: -3000, springLength: 150 } },
+                interaction: { hover: true, tooltipDelay: 200, selectConnectedEdges: false }
+            };
+
+            if (network) network.destroy();
+            network = new vis.Network(container, visData, options);
+
+            network.on("click", function (params) {
+                if (params.nodes.length > 0) {
+                    const node = visData.nodes.get(params.nodes[0]);
+                    showDetails("Researcher", node.label, node.properties);
+                    document.querySelectorAll('.path-row').forEach(r => r.classList.remove('active'));
+                } else if (params.edges.length > 0) {
+                    const edge = visData.edges.get(params.edges[0]);
+                    showDetails("Relationship", "Co-Authorship", edge.properties);
+                } else {
+                    closeDetails();
+                    network.fit({ animation: true });
+                    document.querySelectorAll('.path-row').forEach(r => r.classList.remove('active'));
+                }
+            });
+
+            renderPathsList(data.paths);
+
+            document.getElementById('resultSummary').innerText = data.summary;
+            document.getElementById('pathLengthDisplay').innerText = data.pathsFound;
+        }
+
+        function renderPathsList(paths) {
+            pathsListContent.innerHTML = '';
+            document.getElementById('pathsCountBadge').innerText = paths.length;
+
+            if (paths.length > 0) {
+                pathsListPanel.classList.remove('hidden');
+                paths.forEach((path, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'path-row px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors flex justify-between items-center group';
+                    div.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary"></span>
+                            <span class="text-xs font-medium text-gray-700">${path.label}</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-3 h-3 text-gray-300"></i>
+                    `;
+                    div.onclick = () => focusPath(index, path.nodes, path.edges, div);
+                    pathsListContent.appendChild(div);
+                });
+                lucide.createIcons();
+            } else {
+                pathsListPanel.classList.add('hidden');
+            }
+        }
+
+        function focusPath(index, nodeIds, edgeIds, rowElem) {
+            document.querySelectorAll('.path-row').forEach(r => r.classList.remove('active'));
+            rowElem.classList.add('active');
+
+            network.setSelection({
+                nodes: nodeIds,
+                edges: edgeIds
+            }, {
+                highlightEdges: false
+            });
+
+            network.fit({
+                nodes: nodeIds,
+                animation: {
+                    duration: 1000,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+
+            closeDetails();
+        }
+
+        function showDetails(type, title, props) {
+            const content = document.getElementById('detailsContent');
+            document.getElementById('detailsType').innerText = type + " DETAILS";
+            let html = `<h3 class="font-bold text-gray-800 text-sm mb-3">${title}</h3>`;
+            html += `<div class="grid grid-cols-2 gap-y-2 text-xs">`;
+            for (const [key, value] of Object.entries(props || {})) {
+                html += `<div class="text-gray-500">${key}:</div><div class="font-medium text-gray-800 text-right">${value}</div>`;
+            }
+            html += `</div>`;
+            content.innerHTML = html;
+            detailsPanel.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeDetails() {
+            detailsPanel.classList.add('hidden');
+        }
+
+        // Query Tree Functions
+        function buildQueryTree() {
+            const type = document.getElementById('queryType').value;
+            let treeData = JSON.parse(JSON.stringify(queryTreeTemplates[type]));
+
+            const nameA = inputA.value;
+            const nameB = inputB.value;
+
+            treeData.nodes.forEach(node => {
+                node.label = node.label.replace('$A', nameA).replace('$B', nameB);
+            });
+
+            currentTreeData = treeData;
+            maxExecutionSteps = treeData.nodes.length;
+            document.getElementById('totalSteps').innerText = maxExecutionSteps;
+
+            return treeData;
+        }
+
+        function renderTree(treeData) {
+            const container = document.getElementById('treeNetwork');
+
+            // Create empty datasets - we'll add nodes/edges progressively
+            const data = {
+                nodes: new vis.DataSet([]),
+                edges: new vis.DataSet([])
+            };
+
+            const options = {
+                layout: {
+                    hierarchical: {
+                        direction: 'UD',
+                        sortMethod: 'directed',
+                        nodeSpacing: 150,
+                        levelSeparation: 120
+                    }
+                },
+                nodes: {
+                    shape: 'box',
+                    margin: 15,
+                    widthConstraint: { maximum: 180 },
+                    font: { multi: true, face: 'Inter' },
+                    shadow: true
+                },
+                edges: {
+                    arrows: 'to',
+                    smooth: { type: 'cubicBezier' },
+                    width: 2,
+                    color: { color: '#94a3b8' }
+                },
+                interaction: { hover: true, zoomView: false },
+                physics: { enabled: false }
+            };
+
+            if (treeNetwork) treeNetwork.destroy();
+            treeNetwork = new vis.Network(container, data, options);
+
+            treeNetwork.on('click', (params) => {
+                if (params.nodes.length > 0) {
+                    const node = data.nodes.get(params.nodes[0]);
+                    showOperatorDetails(node);
+                }
+            });
+
+            // Start with first node visible
+            if (currentTreeData && currentTreeData.nodes.length > 0) {
+                treeNetwork.body.data.nodes.add(currentTreeData.nodes[0]);
+                // Fit view to show the first node
+                setTimeout(() => {
+                    treeNetwork.fit({ animation: { duration: 500 } });
+                }, 100);
+            }
+        }
+
+        function showOperatorDetails(operator) {
+            const desc = operatorDescriptions[operator.type];
+            const content = `
+                <h3 class="font-bold text-gray-800 text-sm mb-2">${desc.title}</h3>
+                <p class="text-xs text-gray-600 mb-3">${desc.description}</p>
+                <div class="p-2 bg-gray-50 rounded text-xs font-mono">
+                    ${desc.example}
+                </div>
+            `;
+
+            document.getElementById('detailsType').innerText = "OPERATOR";
+            document.getElementById('detailsContent').innerHTML = content;
+            detailsPanel.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // Execution simulation
+        function playExecution() {
+            resetExecution();
+            const interval = setInterval(() => {
+                if (executionStepCounter >= maxExecutionSteps) {
+                    clearInterval(interval);
+                    return;
+                }
+                stepExecution();
+            }, 1500);
+        }
+
+        function stepExecution() {
+            if (executionStepCounter >= maxExecutionSteps) return;
+
+            executionStepCounter++;
+            document.getElementById('executionStep').innerText = executionStepCounter;
+
+            // Progressively reveal tree nodes and edges
+            if (treeNetwork && currentTreeData) {
+                const currentStep = executionStepCounter;
+
+                // Add the next node if it exists
+                if (currentStep < currentTreeData.nodes.length) {
+                    const nextNode = currentTreeData.nodes[currentStep];
+                    treeNetwork.body.data.nodes.add(nextNode);
+
+                    // Add the edge connecting to this node (from previous node)
+                    const connectingEdge = currentTreeData.edges.find(e => e.to === nextNode.id);
+                    if (connectingEdge) {
+                        treeNetwork.body.data.edges.add(connectingEdge);
+                    }
+
+                    // Focus on the newly added node with animation
+                    setTimeout(() => {
+                        treeNetwork.selectNodes([nextNode.id]);
+                        treeNetwork.fit({
+                            animation: {
+                                duration: 800,
+                                easingFunction: 'easeInOutQuad'
+                            }
+                        });
+                    }, 100);
+                }
+            }
+        }
+
+        function resetExecution() {
+            executionStepCounter = 0;
+            document.getElementById('executionStep').innerText = 0;
+
+            if (treeNetwork && currentTreeData) {
+                // Clear all nodes and edges
+                treeNetwork.body.data.nodes.clear();
+                treeNetwork.body.data.edges.clear();
+
+                // Re-add only the first node
+                if (currentTreeData.nodes.length > 0) {
+                    treeNetwork.body.data.nodes.add(currentTreeData.nodes[0]);
+                }
+
+                treeNetwork.unselectAll();
+                treeNetwork.fit({ animation: true });
+            }
+        }
+
+        // Playground Functions
+        let draggedOpType = null;
+
+        function dragStart(event) {
+            draggedOpType = event.target.getAttribute('data-op-type');
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+            document.getElementById('playgroundCanvas').classList.add('drag-over');
+        }
+
+        function dragLeave(event) {
+            document.getElementById('playgroundCanvas').classList.remove('drag-over');
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            document.getElementById('playgroundCanvas').classList.remove('drag-over');
+
+            if (!draggedOpType) return;
+
+            const canvas = document.getElementById('playgroundCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            createPlaygroundNode(draggedOpType, x, y);
+            document.getElementById('playgroundEmpty').style.display = 'none';
+
+            draggedOpType = null;
+        }
+
+
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            element.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event; S
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        function updateUI() {
+            const type = document.getElementById('queryType').value;
+            if (type === 'cycles') {
+                containerB.style.display = 'none';
+            } else if (type === 'erdos') {
+                containerB.style.display = 'block';
+                inputB.value = "Paul Erdös";
+                inputB.setAttribute('readonly', true);
+                inputB.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+            } else {
+                containerB.style.display = 'block';
+                inputB.removeAttribute('readonly');
+                inputB.classList.remove('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+                if (inputB.value === "Paul Erdös") inputB.value = "Angela Bonifati";
+            }
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const type = document.getElementById('queryType').value;
+            let queryText = templates[type].query;
+            let rawQuery = templates[type].query;
+            const valA = inputA.value || "[empty]";
+            let valB = inputB.value || "[empty]";
+            if (type === 'cycles') valB = valA;
+            queryText = queryText.replace(/\$A/g, `<span class="text-white font-bold">${valA}</span>`);
+            queryText = queryText.replace(/\$B/g, `<span class="text-white font-bold">${valB}</span>`);
+            rawQuery = rawQuery.replace(/\$A/g, valA).replace(/\$B/g, valB);
+            queryPreview.innerHTML = highlightRPQ(rawQuery);
+            document.getElementById('currentModeTitle').innerText = templates[type].label;
+        }
+
+        function runQuery() {
+            const originalBtnText = btnRun.innerHTML;
+            closeDetails();
+            btnRun.disabled = true;
+            btnRun.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processing...`;
+            lucide.createIcons();
+
+            setTimeout(() => {
+                emptyState.classList.add('hidden');
+                viewToggle.classList.remove('hidden');
+
+                const type = document.getElementById('queryType').value;
+                const data = generateGraphData(type, inputA.value, inputB.value);
+
+                // Generate execution time (mock)
+                const execTime = Math.floor(Math.random() * 50) + 20;
+                document.getElementById('execTime').innerText = execTime;
+
+                drawGraph(data);
+                buildQueryTree();
+
+                // Show graph view by default
+                graphView.classList.remove('hidden');
+                currentView = 'graph';
+
+                btnRun.disabled = false;
+                btnRun.innerHTML = originalBtnText;
+                lucide.createIcons();
+            }, 800);
+        }
+
+        function highlightRPQ(code) {
+            let partial = `<span class="text-gray-100">${code}</span>`
+            partial = partial.replace("MATCH", '<span class="text-rose-400 font-bold">MATCH</span>')
+            partial = partial.replace("WHERE", '<span class="text-rose-400 font-bold">WHERE</span>')
+            partial = partial.replace("RETURN", '<span class="text-rose-400 font-bold">RETURN</span>')
+            partial = partial.replace("LIMIT", '<span class="text-rose-400 font-bold">LIMIT</span>')
+            partial = partial.replace("SIMPLE", '<span class="text-rose-400 font-bold">SIMPLE</span>')
+            partial = partial.replace(/[(){}\[\]]/g, match => `<span class="text-gray-400">${match}</span>`);
+            partial = partial.replace(/'[^']*'/g, match => `<span class="text-emerald-400">${match}</span>`);
+            return partial
+        }
+
+        inputA.addEventListener('input', updatePreview);
+        inputB.addEventListener('input', updatePreview);
+        updateUI();
+
+    </script>
+</body>
+
+</html>
