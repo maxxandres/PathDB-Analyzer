@@ -1,124 +1,121 @@
 <template>
-  <div class="h-screen w-screen flex overflow-hidden bg-gray-50">
+  <div class="app-container">
     <!-- SIDEBAR -->
-    <aside class="w-80 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
+    <aside class="sidebar">
       
       <!-- Sidebar header -->
-      <div class="p-6 border-b border-gray-100 bg-gray-50/50">
-          <div class="flex items-center gap-3">
-              <div class="bg-primary/10 p-2 rounded-lg">
-                  <i data-lucide="network" class="text-primary w-6 h-6"></i>
+      <div class="sidebar-header">
+          <div class="header-content">
+              <div class="logo-container">
+                  <i data-lucide="network" class="icon-primary"></i>
               </div>
               <div>
-                  <h1 class="font-bold text-gray-800 text-lg">PathDB Demo</h1>
-                  <p class="text-xs text-gray-500">Query Tree Visualizer</p>
+                  <h1 class="app-title">PathDB Demo</h1>
+                  <p class="app-subtitle">Query Tree Visualizer</p>
               </div>
           </div>
       </div>
 
       <!-- Form -->
-      <div class="p-6 flex-1 overflow-y-auto space-y-6">
-          <div class="space-y-2">
-              <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <i data-lucide="terminal" class="w-4 h-4 text-gray-400"></i>
+      <div class="sidebar-form">
+          <div class="form-group">
+              <label class="form-label">
+                  <i data-lucide="terminal" class="icon-small"></i>
                   PathDB Query
               </label>
-              <div class="relative">
-                  <textarea 
+              <div class="input-wrapper">
+                  <QueryInput 
                       v-model="queryInput" 
-                      class="w-full h-32 p-3 bg-slate-900 text-emerald-400 font-mono text-xs rounded-lg border border-slate-700 focus:ring-2 focus:ring-primary outline-none resize-none"
-                      placeholder="Enter your PathDB query here..."
-                  ></textarea>
+                      class="query-input-component"
+                      :schemaData="{}"
+                  />
               </div>
           </div>
           
-          <div class="space-y-2">
-              <label class="text-sm font-semibold text-gray-700">Presets</label>
-              <div class="grid grid-cols-1 gap-2">
-                <button v-for="(q, i) in presets" :key="i" @click="loadPreset(q)" class="text-left text-xs p-2 rounded border border-gray-200 hover:bg-gray-50 hover:border-primary/30 transition-colors truncate">
+          <div class="form-group">
+              <label class="form-label">Presets</label>
+              <div class="presets-grid">
+                <button v-for="(q, i) in presets" :key="i" @click="loadPreset(q)" class="preset-btn">
                     {{ q.label }}
                 </button>
               </div>
           </div>
       </div>
 
-      <div class="p-6 border-t border-gray-200 bg-white">
-          <button @click="runQuery" :disabled="isLoading"
-              class="w-full bg-primary hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
-              <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+      <div class="sidebar-footer">
+          <button @click="runQuery" :disabled="isLoading" class="run-btn">
+              <i data-lucide="play" class="btn-icon"></i>
               {{ isLoading ? 'Processing...' : 'Run Query' }}
           </button>
       </div>
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 flex flex-col relative bg-gray-50/50 overflow-hidden">
-        <header class="bg-white h-16 border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10 flex-shrink-0">
-            <div class="flex items-center gap-2 text-sm text-gray-500">
+    <main class="main-content">
+        <header class="main-header">
+            <div class="breadcrumbs">
                 <span>Visualization</span>
-                <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                <span class="font-medium text-gray-900">Query Tree</span>
+                <i data-lucide="chevron-right" class="icon-tiny"></i>
+                <span class="crumb-active">Query Tree</span>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <div class="header-actions">
+                <span class="badge">
                     PathDB Core
                 </span>
             </div>
         </header>
 
-        <div class="flex-1 relative flex overflow-hidden">
+        <div class="content-area">
             
             <!-- Visualization Area -->
-            <div class="flex-1 relative bg-gray-100 border-r border-gray-200">
-                <div v-if="!treeData" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-0">
-                    <div class="bg-white p-6 rounded-full shadow-sm mb-6 border border-gray-100">
-                        <i data-lucide="tree-deciduous" class="w-12 h-12 text-gray-300"></i>
+            <div class="visualization-panel">
+                <div v-if="!treeData" class="empty-state">
+                    <div class="empty-icon-wrapper">
+                        <i data-lucide="tree-deciduous" class="empty-icon"></i>
                     </div>
-                    <h2 class="text-xl font-semibold text-gray-800 mb-2">No Query Executed</h2>
-                    <p class="text-gray-500 max-w-md">
+                    <h2 class="empty-title">No Query Executed</h2>
+                    <p class="empty-desc">
                         Enter a PathDB query and run it to visualize the Query Tree Plan.
                     </p>
                 </div>
 
-                <div v-else class="w-full h-full bg-slate-50">
+                <div v-else class="tree-wrapper">
                     <QueryTree :treeData="treeData" @node-select="handleNodeSelect" />
                 </div>
             </div>
 
-            <!-- Right Details Panel -->
-            <div class="w-80 bg-white flex flex-col border-l border-gray-200 shadow-xl z-20 transition-all duration-300 transform" 
-                 :class="selectedNode ? 'translate-x-0' : 'translate-x-full absolute right-0 h-full'">
+            <!-- Object Viewer -->
+            <div class="details-panel" :class="{ 'details-open': selectedNode, 'details-closed': !selectedNode }">
                  
-                 <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                     <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Object Viewer</span>
-                     <button @click="selectedNode = null" class="text-gray-400 hover:text-gray-600">
-                         <i data-lucide="x" class="w-4 h-4"></i>
+                 <div class="details-header">
+                     <span class="details-title">Object Viewer</span>
+                     <button @click="selectedNode = null" class="close-btn">
+                         <i data-lucide="x" class="icon-small"></i>
                      </button>
                  </div>
 
-                 <div v-if="selectedNode" class="flex-1 overflow-y-auto p-4">
+                 <div v-if="selectedNode" class="details-content">
                      <!-- Selected Object Header -->
-                     <div class="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                         <div class="text-xs text-blue-500 font-semibold mb-1 uppercase">Selected Object</div>
-                         <div class="text-lg font-bold text-gray-800 whitespace-pre-wrap font-mono">{{ selectedNode.label.split('\n')[0] }}</div>
-                         <div class="text-xs text-gray-600 mt-1 font-mono">{{ selectedNode.label.split('\n')[1] || '' }}</div>
+                     <div class="object-header">
+                         <div class="object-label">Selected Object</div>
+                         <div class="object-value">{{ selectedNode.label.split('\n')[0] }}</div>
+                         <div class="object-sub">{{ selectedNode.label.split('\n')[1] || '' }}</div>
                      </div>
 
                      <!-- Data Content -->
                      <div v-if="currentNodeData.length > 0">
-                        <h3 class="text-xs font-bold text-gray-900 uppercase mb-3 flex items-center gap-2">
-                            <i data-lucide="database" class="w-3 h-3 text-gray-400"></i>
-                            Data Content <span class="text-gray-400 font-normal">({{ currentNodeData.length }} items)</span>
+                        <h3 class="data-title">
+                            <i data-lucide="database" class="icon-tiny"></i>
+                            Data Content <span class="data-count">({{ currentNodeData.length }} items)</span>
                         </h3>
                         
-                        <div class="space-y-2">
-                            <div v-for="(item, idx) in currentNodeData" :key="idx" 
-                                class="p-3 bg-white border border-gray-200 rounded-lg hover:border-primary/50 hover:shadow-sm transition-all cursor-default">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                                    <span class="text-xs font-bold text-gray-700">{{ item.id }}</span>
+                        <div class="data-list">
+                            <div v-for="(item, idx) in currentNodeData" :key="idx" class="data-item">
+                                <div class="item-header">
+                                    <div class="status-dot"></div>
+                                    <span class="item-id">{{ item.id }}</span>
                                 </div>
-                                <div class="text-[10px] text-gray-500 font-mono space-y-0.5">
+                                <div class="item-details">
                                     <div v-if="item.label">Label: {{ item.label }}</div>
                                     <div v-if="item.from">From: {{ item.from }}</div>
                                     <div v-if="item.to">To: {{ item.to }}</div>
@@ -128,9 +125,9 @@
                      </div>
                  </div>
 
-                 <div v-else class="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center">
-                     <i data-lucide="mouse-pointer-click" class="w-8 h-8 mb-2 opacity-50"></i>
-                     <p class="text-sm">Select a node in the query tree to inspect its details and data.</p>
+                 <div v-else class="empty-details">
+                     <i data-lucide="mouse-pointer-click" class="empty-details-icon"></i>
+                     <p class="empty-details-text">Select a node in the query tree to inspect its details and data.</p>
                  </div>
             </div>
 
@@ -142,6 +139,7 @@
 <script setup>
 import { ref, onMounted, nextTick, computed } from 'vue';
 import QueryTree from './QueryTree.vue';
+import QueryInput from './QueryInput.vue';
 
 const queryInput = ref('MATCH TRAIL p = (x)-[((likes.hasCreator)+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3');
 const isLoading = ref(false);
@@ -275,14 +273,14 @@ const parseQueryToTree = (query) => {
     // 2. Parse RETURN (Root / Projection)
     const returnMatch = query.match(/RETURN\s+(.+?)($|LIMIT)/i);
     const returnClause = returnMatch ? returnMatch[1].trim() : " ";
-    const rootId = addNode(`π\n${returnClause}`, "root", { Operation: "Projection", Expression: returnClause });
+    const rootId = addNode(`π ${returnClause}`, "root", { Operation: "Projection", Expression: returnClause });
 
     // 3. Parse WHERE (Selection)
     let currentParentId = rootId;
     const whereMatch = query.match(/WHERE\s+(.+?)(\s+RETURN|$)/i);
     if (whereMatch) {
         const whereClause = whereMatch[1].trim();
-        const selectId = addNode(`σ\n${whereClause}`, "op", { Operation: "Selection", Condition: whereClause });
+        const selectId = addNode(`σ ${whereClause}`, "op", { Operation: "Selection", Condition: whereClause });
         addEdge(currentParentId, selectId);
         currentParentId = selectId;
     }
@@ -293,7 +291,7 @@ const parseQueryToTree = (query) => {
 
     // 5. Only add Φ (Phi) node if Kleene operators are present
     if (hasKleeneOperator) {
-        const modeId = addNode(`Φ\n${mode}`, "op", { Operation: "Path Semantics", Mode: mode });
+        const modeId = addNode(`Φ ${mode}`, "op", { Operation: "Path Semantics", Mode: mode });
         addEdge(currentParentId, modeId);
         currentParentId = modeId;
     }
@@ -303,7 +301,7 @@ const parseQueryToTree = (query) => {
         let expr = pathMatch[1].trim();
         parseExpression(expr, currentParentId, addNode, addEdge, mode);
     } else {
-        const scanId = addNode("Paths(G)", "scan", { Source: "Database", Type: "Full Scan" });
+        const scanId = addNode(`Paths(G)`, "scan", { Source: "Database", Type: "Full Scan" });
         addEdge(currentParentId, scanId);
     }
 
@@ -443,3 +441,479 @@ onMounted(() => {
 });
 
 </script>
+
+<style scoped>
+.app-container {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    overflow: hidden;
+    background-color: #f9fafb; /* gray-50 */
+}
+
+/* Sidebar */
+.sidebar {
+    width: 20rem; /* w-80 */
+    flex-shrink: 0;
+    background-color: white;
+    border-right: 1px solid #e5e7eb; /* gray-200 */
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); /* shadow-sm */
+    z-index: 10;
+}
+
+.sidebar-header {
+    padding: 1.5rem; /* p-6 */
+    border-bottom: 1px solid #f3f4f6; /* gray-100 */
+    background-color: rgba(249, 250, 251, 0.5); /* bg-gray-50/50 */
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* gap-3 */
+}
+
+.logo-container {
+    background-color: rgba(37, 99, 235, 0.1); /* bg-primary/10 */
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+}
+
+.icon-primary {
+    color: #2563eb; /* text-primary */
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.app-title {
+    font-weight: 700;
+    color: #1f2937; /* text-gray-800 */
+    font-size: 1.125rem; /* text-lg */
+    margin: 0;
+}
+
+.app-subtitle {
+    font-size: 0.75rem; /* text-xs */
+    color: #6b7280; /* text-gray-500 */
+    margin: 0;
+}
+
+/* Form */
+.sidebar-form {
+    padding: 1.5rem;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* space-y-6 */
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* space-y-2 */
+}
+
+.form-label {
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 600;
+    color: #374151; /* text-gray-700 */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.icon-small {
+    width: 1rem;
+    height: 1rem;
+    color: #9ca3af; /* text-gray-400 */
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.query-input {
+    width: 100%;
+    height: 8rem; /* h-32 */
+    padding: 0.75rem;
+    box-sizing: border-box;
+    /* Updated styles (User Request): White bg, Blue text */
+    background-color: #ffffff;
+    color: #2563eb; 
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.75rem; /* text-xs */
+    border-radius: 0.5rem;
+    border: 1px solid #334155; /* border-slate-700 */
+    outline: none;
+    resize: none;
+}
+
+.query-input:focus {
+    box-shadow: 0 0 0 2px #2563eb; /* focus:ring-2 ring-primary */
+    border-color: transparent;
+}
+
+.presets-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.preset-btn {
+    text-align: left;
+    font-size: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid #e5e7eb;
+    background-color: transparent;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.preset-btn:hover {
+    background-color: #f9fafb;
+    border-color: rgba(37, 99, 235, 0.3);
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+    padding: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    background-color: white;
+}
+
+.run-btn {
+    width: 100%;
+    background-color: #2563eb; /* bg-primary */
+    color: white;
+    font-weight: 500;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.run-btn:hover {
+    background-color: #1d4ed8; /* hover:bg-blue-700 */
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.run-btn:active {
+    transform: scale(0.95);
+}
+
+.run-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-icon {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background-color: rgba(249, 250, 251, 0.5);
+    overflow: hidden;
+}
+
+.main-header {
+    background-color: white;
+    height: 4rem; /* h-16 */
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem; /* text-sm */
+    color: #6b7280;
+}
+
+.crumb-active {
+    font-weight: 500;
+    color: #111827;
+}
+
+.icon-tiny {
+    width: 1rem;
+    height: 1rem;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: #dcfce7; /* bg-green-100 */
+    color: #166534; /* text-green-800 */
+}
+
+/* Content Area */
+.content-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    overflow: hidden;
+}
+
+.visualization-panel {
+    flex: 1;
+    position: relative;
+    background-color: #f3f4f6; /* bg-gray-100 */
+    border-right: 1px solid #e5e7eb;
+}
+
+.tree-wrapper {
+    width: 100%;
+    height: 100%;
+    background-color: #f8fafc; /* bg-slate-50 */
+}
+
+.empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    z-index: 0;
+}
+
+.empty-icon-wrapper {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 9999px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    margin-bottom: 1.5rem;
+    border: 1px solid #f3f4f6;
+}
+
+.empty-icon {
+    width: 3rem;
+    height: 3rem;
+    color: #d1d5db; /* text-gray-300 */
+}
+
+.empty-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.empty-desc {
+    color: #6b7280;
+    max-width: 28rem;
+}
+
+/* Details Panel */
+.details-panel {
+    width: 20rem; /* w-80 */
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #e5e7eb;
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+    z-index: 20;
+    transition: all 0.3s;
+    transform: translateX(0);
+}
+
+.details-closed {
+    transform: translateX(100%);
+    position: absolute;
+    right: 0;
+    height: 100%;
+}
+
+.details-open {
+    transform: translateX(0);
+}
+
+.details-header {
+    padding: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: rgba(249, 250, 251, 0.5);
+}
+
+.details-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    color: #4b5563;
+}
+
+.details-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.object-header {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #eff6ff; /* bg-blue-50 */
+    border-radius: 0.75rem;
+    border: 1px solid #dbeafe; /* border-blue-100 */
+}
+
+.object-label {
+    font-size: 0.75rem;
+    color: #3b82f6;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.object-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1f2937;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.object-sub {
+    font-size: 0.75rem;
+    color: #4b5563;
+    margin-top: 0.25rem;
+    font-family: monospace;
+}
+
+.data-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #111827;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.data-count {
+    color: #9ca3af;
+    font-weight: 400;
+}
+
+.data-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.data-item {
+    padding: 0.75rem;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    cursor: default;
+    transition: all 0.2s;
+}
+
+.data-item:hover {
+    border-color: rgba(37, 99, 235, 0.5);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.status-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background-color: #10b981; /* bg-emerald-500 */
+}
+
+.item-id {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #374151;
+}
+
+.item-details {
+    font-size: 0.625rem;
+    color: #6b7280;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.empty-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    padding: 2rem;
+    text-align: center;
+}
+
+.empty-details-icon {
+    width: 2rem;
+    height: 2rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.empty-details-text {
+    font-size: 0.875rem;
+}
+</style>

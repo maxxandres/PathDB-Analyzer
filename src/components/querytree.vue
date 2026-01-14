@@ -1,6 +1,6 @@
 <template>
-  <div class="relative w-full h-full">
-    <div id="query-tree-network" class="w-full h-full"></div>
+  <div class="tree-container">
+    <div id="query-tree-network" class="network-canvas"></div>
   </div>
 </template>
 
@@ -64,7 +64,7 @@ const renderTree = () => {
             width: 1,
             color: '#94a3b8',
             smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 },
-            arrows: 'to'
+            arrows: 'null'
         },
         physics: false, // Disable physics for static tree layout
         interaction: {
@@ -100,7 +100,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
-#query-tree-network {
+.tree-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.network-canvas {
+    width: 100%;
+    height: 100%;
     outline: none;
 }
 </style>
