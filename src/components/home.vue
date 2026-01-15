@@ -7,7 +7,7 @@
       <div class="sidebar-header">
           <div class="header-content">
               <div class="logo-container">
-                  <i data-lucide="network" class="icon-primary"></i>
+                
               </div>
               <div>
                   <h1 class="app-title">PathDB Demo</h1>
@@ -59,16 +59,41 @@
                 <span class="crumb-active">Query Tree</span>
             </div>
             <div class="header-actions">
+                <!-- User Info -->
+                <div v-if="session" class="user-session">
+                    <i data-lucide="user" class="icon-tiny"></i>
+                    <span>{{ session.user }}</span>
+                </div>
+                
+                <!-- Theme Toggle -->
+                <button class="action-btn" @click="$emit('toggle-theme')" :title="theme === 'light' ? 'Dark Mode' : 'Light Mode'">
+                    <i :data-lucide="theme === 'light' ? 'moon' : 'sun'" class="icon-small"></i>
+                </button>
+
+                <!-- Logout -->
+                <button class="action-btn logout-btn" @click="$emit('logout')" title="Logout">
+                    <i data-lucide="log-out" class="icon-small"></i>
+                </button>
+
                 <span class="badge">
-                    PathDB Core
+                    PathDB
                 </span>
             </div>
         </header>
 
+                    <!-- Export Tree Button
+                <div v-if="treeData" class="panel-header-actions">
+                    <button @click="triggerExport" class="export-btn" title="Export as PNG">
+                        <i data-lucide="download" class="icon-tiny"></i>
+                        Export Tree
+                    </button>
+                </div> -->
+
+            
         <div class="content-area">
             
-            <!-- Visualization Area -->
-            <div class="visualization-panel">
+
+
                 <div v-if="!treeData" class="empty-state">
                     <div class="empty-icon-wrapper">
                         <i data-lucide="tree-deciduous" class="empty-icon"></i>
@@ -80,9 +105,8 @@
                 </div>
 
                 <div v-else class="tree-wrapper">
-                    <QueryTree :treeData="treeData" @node-select="handleNodeSelect" />
+                    <QueryTree ref="treeRef" :treeData="treeData" @node-select="handleNodeSelect" />
                 </div>
-            </div>
 
             <!-- Object Viewer -->
             <div class="details-panel" :class="{ 'details-open': selectedNode, 'details-closed': !selectedNode }">
@@ -99,28 +123,48 @@
                      <div class="object-header">
                          <div class="object-label">Selected Object</div>
                          <div class="object-value">{{ selectedNode.label.split('\n')[0] }}</div>
-                         <div class="object-sub">{{ selectedNode.label.split('\n')[1] || '' }}</div>
+                         <div class="object-value">{{ selectedNode.label.split('\n')[1] || '' }}</div>
                      </div>
 
                      <!-- Data Content -->
-                     <div v-if="currentNodeData.length > 0">
+                     <div v-if="currentNodeData.rows && currentNodeData.rows.length > 0">
                         <h3 class="data-title">
                             <i data-lucide="database" class="icon-tiny"></i>
-                            Data Content <span class="data-count">({{ currentNodeData.length }} items)</span>
+                            Query Results <span class="data-count">({{ currentNodeData.rows.length }} results)</span>
                         </h3>
                         
-                        <div class="data-list">
-                            <div v-for="(item, idx) in currentNodeData" :key="idx" class="data-item">
-                                <div class="item-header">
-                                    <div class="status-dot"></div>
-                                    <span class="item-id">{{ item.id }}</span>
-                                </div>
-                                <div class="item-details">
-                                    <div v-if="item.label">Label: {{ item.label }}</div>
-                                    <div v-if="item.from">From: {{ item.from }}</div>
-                                    <div v-if="item.to">To: {{ item.to }}</div>
+                        <!-- Table Display -->
+                        <div class="data-table">
+                            <!-- Headers -->
+                            <div class="table-header">
+                                <div class="table-row">
+                                    <div v-for="(header, idx) in currentNodeData.headers" :key="idx" 
+                                         class="table-cell header-cell">
+                                        {{ header }}
+                                    </div>
                                 </div>
                             </div>
+                            
+                            <!-- Rows (Paths) -->
+                            <div class="table-body">
+                                <div v-for="(row, rowIdx) in currentNodeData.rows" :key="rowIdx" 
+                                     class="table-row data-row">
+
+                                    <div class="row-content">
+                                        <div v-for="(cell, cellIdx) in row" :key="cellIdx" 
+                                             class="table-cell" 
+                                             :title="cell">
+                                            {{ cell }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Status Message -->
+                        <div v-if="currentNodeData.message" class="status-message">
+                            <i data-lucide="check-circle" class="status-icon"></i>
+                            {{ currentNodeData.message }}
                         </div>
                      </div>
                  </div>
@@ -141,15 +185,25 @@ import { ref, onMounted, nextTick, computed } from 'vue';
 import QueryTree from './QueryTree.vue';
 import QueryInput from './QueryInput.vue';
 
+const props = defineProps(['session', 'theme']);
+const emit = defineEmits(['node-select', 'logout', 'toggle-theme']);
+
 const queryInput = ref('MATCH TRAIL p = (x)-[((likes.hasCreator)+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3');
 const isLoading = ref(false);
 const treeData = ref(null);
 const selectedNode = ref(null);
+const treeRef = ref(null);
+
+const triggerExport = () => {
+    if (treeRef.value) {
+        treeRef.value.downloadImage();
+    }
+}
 
 const presets = [
-    { label: "Example 1: Basic Trail (Moe)", query: 'MATCH TRAIL p = (x)-[((likes.hasCreator)+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3' },
-    { label: "Example 2: Simple Path (Co-author)", query: 'MATCH SIMPLE p = (a)-[coauthor*]->(b) WHERE a.name = "Alice" RETURN p' },
-    { label: "Example 4: Union", query: 'MATCH TRAIL p = (x)-[(knows|likes)]->(y) RETURN y' }
+    { label: "Example 1", query: 'MATCH TRAIL p = (x)-[((likes.hasCreator)+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3' },
+    { label: "Example 2", query: 'MATCH SIMPLE p = (a)-[coauthor*]->(b) WHERE a.name = "Alice" RETURN p' },
+    { label: "Example 4", query: 'MATCH TRAIL p = (x)-[(knows|likes)]->(y) RETURN y' }
 ];
 
 const loadPreset = (preset) => {
@@ -160,69 +214,158 @@ const handleNodeSelect = (node) => {
     selectedNode.value = node;
 }
 
-// Hardcoded data structure - modify this JSON as needed
-// This represents the data that would be shown for different algebra operations
+// Simulated backend response structure
+// Format: { success: boolean, message: string, data: array, metadata?: object }
+// data[0] = headers, data[1..n] = solutions (paths)
 const hardcodedData = {
     // Paths₁(G) - All edges from database
-    "Paths₁(G)": [
-        { id: "Edge_1", label: "knows", from: "Person_1", to: "Person_2" },
-        { id: "Edge_2", label: "likes", from: "Person_1", to: "Post_5" },
-        { id: "Edge_3", label: "hasCreator", from: "Post_5", to: "Person_3" },
-        { id: "Edge_4", label: "knows", from: "Person_2", to: "Person_4" },
-        { id: "Edge_5", label: "likes", from: "Person_3", to: "Post_1" }
-    ],
+    "Paths₁(G)": {
+        success: true,
+        message: "",
+        data: [
+            ["id", "label"], // Headers
+            ["Edge_1", "knows"], // Path 1
+            ["Edge_2", "likes"], // Path 2
+            ["Edge_3", "hasCreator"], // Path 3
+            ["Edge_4", "knows"], // Path 4
+            ["Edge_5", "likes"], // Path 5
+            ["Edge_334", "knows"], // Path 4
+            ["Edge_224", "knows"], // Path 4
+            ["Edge_1114", "knows"], // Path 4
+            ["Edge_5554", "knows"], // Path 4
+            ["Edge_444", "knows"], // Path 4
+            ["Edge_334", "knows"], // Path 4
+            ["Edge_11114", "knows"], // Path 4
+            ["Edge_0034", "knows"], // Path 4
+            ["Edge_064", "knows"], // Path 4
+            ["Edge_884", "knows"], // Path 4
+            ["Edge_334", "knows"], // Path 4
+            ["Edge_1224", "knows"], // Path 4
+            ["Edge_164", "knows"], // Path 4
+            ["Edge_134", "knows"], // Path 4
+            ["Edge_124", "knows"], // Path 4
+            ["Edge_204", "knows"], // Path 4
+            ["Edge_94", "knows"], // Path 4
+            ["Edge_84", "knows"], // Path 4
+            ["Edge_74", "knows"], // Path 4
+            ["Edge_54", "knows"], // Path 4
+            ["Edge_44", "knows"], // Path 4
+            ["Edge_33", "knows"], // Path 4
+            ["Edge_121", "knows"], // Path 4
+            ["Edge_21", "knows"], // Path 4
+            ["Edge_22", "knows"], // Path 4
+        ]
+    },
+    // Paths₀(G) - Empty paths / Nodes only
+    "Paths₀(G)": {
+        success: true,
+        message: "",
+        data: [
+            ["id", "type", "node_id"],
+            ["Empty_1", "zero_length", "Person_1"],
+            ["Empty_2", "zero_length", "Person_2"],
+            ["Empty_3", "zero_length", "Person_3"]
+        ]
+    },
     // Selection nodes (σ)
-    "σ": [
-        { id: "Edge_1", label: "likes", from: "Person_1", to: "Post_5" },
-        { id: "Edge_3", label: "hasCreator", from: "Post_5", to: "Person_3" }
-    ],
+    "σ": {
+        success: true,
+        message: "",
+        data: [
+            ["id", "label", "from", "to"],
+            ["Edge_1", "likes", "Person_1", "Post_5"],
+            ["Edge_3", "likes", "Post_5", "Person_3"]
+        ]
+    },
     // Join nodes (⋈)
-    "⋈": [
-        { id: "Path_1", label: "likes→hasCreator", from: "Person_1", to: "Person_3" },
-        { id: "Path_2", label: "likes→hasCreator", from: "Person_2", to: "Person_4" },
-        { id: "Path_3", label: "likes→hasCreator", from: "Person_5", to: "Person_1" }
-    ],
+    "⋈": {
+        success: true,
+        message: "",
+        data: [
+            ["path_id", "combined_label", "source", "target"],
+            ["Path_1", "likes,hasCreator", "Person_1", "Person_3"],
+            ["Path_2", "likes,hasCreator", "Person_2", "Person_4"],
+            ["Path_3", "likes,hasCreator", "Person_5", "Person_1"]
+        ]
+    },
     // Union nodes (∪)
-    "∪": [
-        { id: "Edge_1", label: "knows", from: "Person_1", to: "Person_2" },
-        { id: "Edge_2", label: "likes", from: "Person_1", to: "Post_5" },
-        { id: "Edge_4", label: "knows", from: "Person_2", to: "Person_4" },
-        { id: "Edge_5", label: "likes", from: "Person_3", to: "Post_1" }
-    ],
+    "∪": {
+        success: true,
+        message: "",
+        data: [
+            ["id", "label", "from", "to"],
+            ["Edge_1", "knows", "Person_1", "Person_2"],
+            ["Edge_2", "likes", "Person_1", "Post_5"],
+            ["Edge_4", "knows", "Person_2", "Person_4"],
+            ["Edge_5", "likes", "Person_3", "Post_1"]
+        ]
+    },
     // Projection nodes (π)
-    "π": [
-        { id: "Result_1", label: "y.name = 'Alice'" },
-        { id: "Result_2", label: "y.name = 'Bob'" },
-        { id: "Result_3", label: "y.name = 'Charlie'" }
-    ],
+    "π": {
+        success: true,
+        message: "",
+        data: [
+            ["result"], // Header
+            ["y.name = 'Alice'"], // Path 1
+            ["y.name = 'Bob'"], // Path 2
+            ["y.name = 'Charlie'"] // Path 3
+        ]
+    },
     // Path Semantics (Φ)
-    "Φ": [
-        { id: "Trail_1", label: "trail_path", from: "Person_1", to: "Person_3" },
-        { id: "Trail_2", label: "trail_path", from: "Person_2", to: "Person_5" }
-    ],
+    "Φ": {
+        success: true,
+        message: "",
+        data: [
+            ["id", "label", "from", "to"],
+            ["Trail_1", "coauthor,coauthor", "Person_1", "Person_3"],
+            ["Trail_2", "coauthor,coauthor,coauthor,coauthor", "Person_2", "Person_5"]
+        ]
+    },
     // Default fallback
-    "default": []
+    "default": {
+        success: false,
+        message: "No data available",
+        data: []
+    }
 };
 
 // Computed property to get data for current selected node
 const currentNodeData = computed(() => {
-    if (!selectedNode.value) return [];
+    if (!selectedNode.value) return { headers: [], rows: [] };
     
     const label = selectedNode.value.label.split('\n')[0];
     
+    let responseData = null;
+    
     // Check for exact matches first
     if (hardcodedData[label]) {
-        return hardcodedData[label];
-    }
-    
-    // Check for partial matches (e.g., "σ\nlabel=likes" matches "σ")
-    for (const key in hardcodedData) {
-        if (label.includes(key) && key !== 'default') {
-            return hardcodedData[key];
+        responseData = hardcodedData[label];
+    } else {
+        // Check for partial matches (e.g., "σ\nlabel=likes" matches "σ")
+        for (const key in hardcodedData) {
+            if (label.includes(key) && key !== 'default') {
+                responseData = hardcodedData[key];
+                break;
+            }
         }
     }
     
-    return hardcodedData.default;
+    // Fallback to default
+    if (!responseData) {
+        responseData = hardcodedData.default;
+    }
+    
+    // Extract headers and rows from backend format
+    if (responseData.data && responseData.data.length > 0) {
+        return {
+            headers: responseData.data[0], // Index 0 = headers
+            rows: responseData.data.slice(1), // Index 1..n = solutions
+            message: responseData.message,
+            success: responseData.success
+        };
+    }
+    
+    return { headers: [], rows: [], message: responseData.message, success: responseData.success };
 });
 
 
@@ -286,7 +429,10 @@ const parseQueryToTree = (query) => {
     }
 
     // 4. Check if Kleene operators exist in the path expression
-    const pathMatch = query.match(/-\s*\[(.+?)\]\s*->/);
+    // More flexible regex to handle spaces: - [ expr ] ->
+    const pathMatch = query.match(/-\s*\[([\s\S]+?)\]\s*->/);
+    
+    // Check for Kleene operators (+ or *) in the expression
     const hasKleeneOperator = pathMatch && (pathMatch[1].includes('+') || pathMatch[1].includes('*'));
 
     // 5. Only add Φ (Phi) node if Kleene operators are present
@@ -420,6 +566,21 @@ const parseExpression = (expr, parentId, addNode, addEdge, mode) => {
     }
 
 
+    // Handle Optional: ?
+    if (expr.endsWith('?')) {
+        const inner = expr.slice(0, -1);
+        const unionId = addNode("∪\nUnion", "op", { Operation: "Union" });
+        addEdge(parentId, unionId);
+        
+        // Left: Paths0(G)
+        const paths0Id = addNode("Paths₀(G)", "scan", { Source: "Database", Type: "Empty Path Scan" });
+        addEdge(unionId, paths0Id);
+        
+        // Right: Inner expression
+        parseExpression(inner, unionId, addNode, addEdge, mode);
+        return;
+    }
+
     // Base Case: Leaf (Label)
     const cleanLabel = expr.replace(/[()]/g, '');
     if (cleanLabel) {
@@ -443,20 +604,60 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.user-session {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background-color: var(--bg-secondary);
+    border-radius: 2rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.action-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background-color: var(--bg-secondary);
+    color: #2563eb;
+    border-color: #2563eb;
+}
+
+.logout-btn:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
 .app-container {
     height: 100vh;
     width: 100vw;
     display: flex;
     overflow: hidden;
-    background-color: #f9fafb; /* gray-50 */
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s;
 }
 
 /* Sidebar */
 .sidebar {
     width: 20rem; /* w-80 */
     flex-shrink: 0;
-    background-color: white;
-    border-right: 1px solid #e5e7eb; /* gray-200 */
+    background-color: var(--bg-primary);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); /* shadow-sm */
@@ -465,8 +666,8 @@ onMounted(() => {
 
 .sidebar-header {
     padding: 1.5rem; /* p-6 */
-    border-bottom: 1px solid #f3f4f6; /* gray-100 */
-    background-color: rgba(249, 250, 251, 0.5); /* bg-gray-50/50 */
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
 }
 
 .header-content {
@@ -482,21 +683,21 @@ onMounted(() => {
 }
 
 .icon-primary {
-    color: #2563eb; /* text-primary */
+    color: #3b82f6;
     width: 1.5rem;
     height: 1.5rem;
 }
 
 .app-title {
     font-weight: 700;
-    color: #1f2937; /* text-gray-800 */
+    color: var(--text-primary);
     font-size: 1.125rem; /* text-lg */
     margin: 0;
 }
 
 .app-subtitle {
     font-size: 0.75rem; /* text-xs */
-    color: #6b7280; /* text-gray-500 */
+    color: var(--text-secondary);
     margin: 0;
 }
 
@@ -508,6 +709,7 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 1.5rem; /* space-y-6 */
+    background-color: var(--bg-primary);
 }
 
 .form-group {
@@ -519,7 +721,7 @@ onMounted(() => {
 .form-label {
     font-size: 0.875rem; /* text-sm */
     font-weight: 600;
-    color: #374151; /* text-gray-700 */
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -528,7 +730,7 @@ onMounted(() => {
 .icon-small {
     width: 1rem;
     height: 1rem;
-    color: #9ca3af; /* text-gray-400 */
+    color: var(--text-secondary);
 }
 
 .input-wrapper {
@@ -567,8 +769,9 @@ onMounted(() => {
     font-size: 0.75rem;
     padding: 0.5rem;
     border-radius: 0.25rem;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     background-color: transparent;
+    color: var(--text-primary);
     cursor: pointer;
     transition: background-color 0.2s;
     overflow: hidden;
@@ -577,15 +780,15 @@ onMounted(() => {
 }
 
 .preset-btn:hover {
-    background-color: #f9fafb;
-    border-color: rgba(37, 99, 235, 0.3);
+    background-color: var(--bg-secondary);
+    border-color: #3b82f6;
 }
 
 /* Sidebar Footer */
 .sidebar-footer {
     padding: 1.5rem;
-    border-top: 1px solid #e5e7eb;
-    background-color: white;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
 }
 
 .run-btn {
@@ -639,9 +842,9 @@ onMounted(() => {
 }
 
 .main-header {
-    background-color: white;
+    background-color: var(--bg-secondary);
     height: 4rem; /* h-16 */
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -657,12 +860,12 @@ onMounted(() => {
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem; /* text-sm */
-    color: #6b7280;
+    color: var(--text-secondary);
 }
 
 .crumb-active {
     font-weight: 500;
-    color: #111827;
+    color: var(--text-primary);
 }
 
 .icon-tiny {
@@ -687,19 +890,26 @@ onMounted(() => {
     position: relative;
     display: flex;
     overflow: hidden;
+    background-color: var(--bg-primary);
 }
 
+.panel-header-actions {
+    display: flex;
+    align-items: center;
+    height: 50px;
+    width: 50px;
+}
 .visualization-panel {
     flex: 1;
     position: relative;
-    background-color: #f3f4f6; /* bg-gray-100 */
-    border-right: 1px solid #e5e7eb;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
 }
 
 .tree-wrapper {
     width: 100%;
     height: 100%;
-    background-color: #f8fafc; /* bg-slate-50 */
+    background-color: var(--bg-secondary);
 }
 
 .empty-state {
@@ -712,15 +922,16 @@ onMounted(() => {
     text-align: center;
     padding: 2rem;
     z-index: 0;
+    background-color: var(--bg-primary); 
 }
 
 .empty-icon-wrapper {
-    background-color: white;
+    background-color: var(--bg-primary);
     padding: 1.5rem;
     border-radius: 9999px;
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     margin-bottom: 1.5rem;
-    border: 1px solid #f3f4f6;
+    border: 1px solid var(--border-color);
 }
 
 .empty-icon {
@@ -732,22 +943,22 @@ onMounted(() => {
 .empty-title {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
     margin-bottom: 0.5rem;
 }
 
 .empty-desc {
-    color: #6b7280;
+    color: var(--text-secondary);
     max-width: 28rem;
 }
 
 /* Details Panel */
 .details-panel {
     width: 20rem; /* w-80 */
-    background-color: white;
+    background-color: var(--bg-primary);
     display: flex;
     flex-direction: column;
-    border-left: 1px solid #e5e7eb;
+    border-left: 1px solid var(--border-color);
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
     z-index: 20;
     transition: all 0.3s;
@@ -767,11 +978,11 @@ onMounted(() => {
 
 .details-header {
     padding: 1rem;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background-color: rgba(249, 250, 251, 0.5);
+    background-color: var(--bg-secondary);
 }
 
 .details-title {
@@ -779,13 +990,13 @@ onMounted(() => {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6b7280;
+    color: var(--text-secondary);
 }
 
 .close-btn {
     background: none;
     border: none;
-    color: #9ca3af;
+    color: var(--text-secondary);
     cursor: pointer;
 }
 
@@ -802,9 +1013,9 @@ onMounted(() => {
 .object-header {
     margin-bottom: 1.5rem;
     padding: 1rem;
-    background-color: #eff6ff; /* bg-blue-50 */
+    background-color: var(--bg-secondary);
     border-radius: 0.75rem;
-    border: 1px solid #dbeafe; /* border-blue-100 */
+    border: 1px solid var(--border-color);
 }
 
 .object-label {
@@ -818,14 +1029,14 @@ onMounted(() => {
 .object-value {
     font-size: 1.125rem;
     font-weight: 700;
-    color: #1f2937;
+    color: var(--text-primary);
     white-space: pre-wrap;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .object-sub {
     font-size: 0.75rem;
-    color: #4b5563;
+    color: var(--text-secondary);
     margin-top: 0.25rem;
     font-family: monospace;
 }
@@ -833,7 +1044,7 @@ onMounted(() => {
 .data-title {
     font-size: 0.75rem;
     font-weight: 700;
-    color: #111827;
+    color: var(--text-primary);
     text-transform: uppercase;
     margin-bottom: 0.75rem;
     display: flex;
@@ -854,16 +1065,15 @@ onMounted(() => {
 
 .data-item {
     padding: 0.75rem;
-    background-color: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
     cursor: default;
     transition: all 0.2s;
 }
 
 .data-item:hover {
-    border-color: rgba(37, 99, 235, 0.5);
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    border-color: #3b82f6;
+    background-color: var(--bg-secondary);
 }
 
 .item-header {
@@ -883,16 +1093,102 @@ onMounted(() => {
 .item-id {
     font-size: 0.75rem;
     font-weight: 700;
-    color: #374151;
+    color: var(--text-primary);
 }
 
 .item-details {
     font-size: 0.625rem;
-    color: #6b7280;
+    color: var(--text-secondary);
     font-family: monospace;
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
+}
+
+/* Table Styles */
+.data-table {
+    background-color: var(--bg-primary);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.table-header {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.5rem 0.75rem;
+}
+
+.table-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.table-cell {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.625rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-cell {
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    font-size: 14px;
+}
+
+
+.data-row {
+    padding: 0.5rem 0.75rem;
+    transition: background-color 0.2s;
+    cursor: default;
+    display: block;
+}
+
+.data-row:hover {
+    background-color: var(--bg-secondary);
+}
+
+.row-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.path-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.row-content {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.row-content .table-cell {
+    color: var(--text-primary);
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.status-message {
+    margin-top: 0.75rem;
+    font-size: 0.625rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.status-icon {
+    width: 0.75rem;
+    height: 0.75rem;
+    color: #10b981;
 }
 
 .empty-details {
@@ -901,7 +1197,7 @@ onMounted(() => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #9ca3af;
+    color: var(--text-secondary);
     padding: 2rem;
     text-align: center;
 }
@@ -916,4 +1212,13 @@ onMounted(() => {
 .empty-details-text {
     font-size: 0.875rem;
 }
+
+
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}   
 </style>
+

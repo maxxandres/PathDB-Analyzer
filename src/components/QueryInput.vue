@@ -201,15 +201,17 @@ watch(() => props.schemaData, () => {
   position: absolute;
   inset: 0;
   padding: 10px 16px;
-  border: 1px solid #334155; /* border-slate-700 */
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 12px; /* text-xs */
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  background: white;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   white-space: pre-wrap; /* Allow wrapping */
   overflow-y: auto;
   pointer-events: none;
   line-height: 1.5;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 /* Textarea real, transparente encima */
@@ -237,17 +239,17 @@ watch(() => props.schemaData, () => {
 
 /* Tokens */
 .token-keyword { color: #D73A49; font-weight: 700; }
-.token-variable { color: #6F42C1; font-weight: 600; }
-.token-label { color: #005CC5; font-weight: 600; }
-.token-property { color: #22863A; }
-.token-string { color: #032F62; }
+.token-variable { color: #9B6DFF; font-weight: 600; }
+.token-label { color: #3b82f6; font-weight: 600; }
+.token-property { color: #2ecc71; }
+.token-string { color: #f1c40f; }
 .token-number { color: #E36209; }
 .token-operator { color: #D73A49; }
 .token-arrow { color: #D73A49; font-weight: 700; }
-.token-delimiter { color: #24292E; }
+.token-delimiter { color: var(--text-primary); }
 .token-comment { color: #6A737D; font-style: italic; }
 .token-whitespace { color: transparent; }
-.token-default { color: #24292E; }
-.token-ghost { color: #9CA3AF; opacity: 0.6; }
+.token-default { color: var(--text-primary); }
+.token-ghost { color: var(--text-secondary); opacity: 0.6; }
 
 </style>

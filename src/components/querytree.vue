@@ -93,6 +93,24 @@ watch(() => props.treeData, () => {
     renderTree();
 });
 
+const downloadImage = () => {
+    if (!network) return;
+    
+    // Get the canvas element from vis-network
+    const canvas = document.querySelector('#query-tree-network canvas');
+    if (!canvas) return;
+    
+    // Create a temporary link to download
+    const link = document.createElement('a');
+    link.download = `pathdb-query-tree-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+};
+
+defineExpose({
+    downloadImage
+});
+
 onMounted(() => {
     if (props.treeData) renderTree();
 });
@@ -110,5 +128,6 @@ onMounted(() => {
     width: 100%;
     height: 100%;
     outline: none;
+    background-color: var(--bg-primary);
 }
 </style>
