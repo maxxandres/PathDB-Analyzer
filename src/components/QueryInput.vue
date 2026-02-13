@@ -193,7 +193,7 @@ watch(() => props.schemaData, () => {
 .query-input-wrapper {
   position: relative;
   width: 100%;
-  height: 8rem; /* Matches h-32 */
+  height: 100%; /* Changed from 8rem to 100% */
 }
 
 /* Capa con highlight */
@@ -201,17 +201,23 @@ watch(() => props.schemaData, () => {
   position: absolute;
   inset: 0;
   padding: 10px 16px;
-  border: 1px solid var(--border-color);
+  border: 1px solid transparent;
   border-radius: 8px;
-  font-size: 12px; /* text-xs */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  background: var(--bg-primary);
+  font-size: 12px; /* 13px - optimized for visibility */
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: transparent;
   color: var(--text-primary);
-  white-space: pre-wrap; /* Allow wrapping */
-  overflow-y: auto;
+  white-space: pre; /* Better for horizontal single-line look */
+  overflow-x: auto;
+  overflow-y: hidden;
   pointer-events: none;
   line-height: 1.5;
   transition: background-color 0.3s, color 0.3s;
+  scrollbar-width: none; /* Hide scrollbar Firefox */
+}
+
+.query-input-display::-webkit-scrollbar {
+  display: none; /* Hide scrollbar Chrome/Safari */
 }
 
 /* Textarea real, transparente encima */
@@ -219,18 +225,24 @@ watch(() => props.schemaData, () => {
   position: absolute;
   inset: 0;
   padding: 10px 16px;
-  border: 1px solid transparent; /* Border match handled by display */
+  border: 1px solid transparent;
   border-radius: 8px;
-  font-size: 12px; /* text-xs */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px; /* 13px */
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   background: transparent;
   color: transparent;
-  caret-color: #2563eb; /* Blue caret */
-  white-space: pre-wrap; /* Allow wrapping */
-  overflow-y: auto;
+  caret-color: #3b82f6; /* More vibrant blue */
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: hidden;
   resize: none;
   line-height: 1.5;
   outline: none;
+  scrollbar-width: none;
+}
+
+.query-input-hidden::-webkit-scrollbar {
+  display: none;
 }
 
 .query-input-hidden::selection {

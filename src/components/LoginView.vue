@@ -8,7 +8,7 @@
     <div class="glass-card">
       <div class="card-header">
         <h1 class="title">PathDB</h1>
-        <p class="subtitle">Enter your credentials to access the visualizer</p>
+        <p class="subtitle">Demo </p>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">
@@ -47,11 +47,6 @@
           {{ error }}
         </div>
 
-        <div v-if="isBlocked" class="block-message">
-          <i data-lucide="clock" class="block-icon"></i>
-          Too many attempts. Please wait {{ blockTimer }}s.
-        </div>
-
         <button type="submit" class="login-btn" :disabled="isLoading || isBlocked">
           <span v-if="!isLoading">{{ isBlocked ? 'Blocked' : 'Sign In' }}</span>
           <span v-else class="loader"></span>
@@ -63,6 +58,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { api } from '../services/api';
 
 const props = defineProps(['theme']);
 const emit = defineEmits(['login-success', 'toggle-theme']);
@@ -83,51 +79,32 @@ const handleLogin = async () => {
     
     const now = Date.now();
     attempts.value = attempts.value.filter(t => now - t < 60000);
-    
-    if (attempts.value.length >= 5) {
-        startBlock();
-        return;
-    }
 
     attempts.value.push(now);
     isLoading.value = true;
 
-    setTimeout(() => {
+    try {
+        // 1. Login to get loginToken
+        const loginToken = await api.login(username.value, password.value);
+        
+        // 2. Open session to get sessionToken
+        const sessionToken = await api.openSession(loginToken);
+
+        const sessionData = {
+            user: username.value,
+            loginToken: loginToken,
+            sessionToken: sessionToken
+        };
+        
+        emit('login-success', sessionData);
+    } catch (e) {
+        console.error("Login flow failed:", e);
+        error.value = 'Authentication failed. Please check your credentials.';
+    } finally {
         isLoading.value = false;
-        if (username.value === 'demo' && password.value === 'practica2026') {
-            const response = {
-                success: true,
-                message: "Login successful",
-                data: {
-                    user: "demo",
-                    token: "mock-jwt-token-" + Math.random().toString(36).substr(2)
-                }
-            };
-            emit('login-success', response.data);
-        } else {
-            error.value = 'Invalid username or password.';
-            if (attempts.value.length >= 5) {
-                startBlock();
-            }
-        }
-    }, 800);
+    }
 };
 
-const startBlock = () => {
-    isBlocked.value = true;
-    error.value = 'Too many attempts. Account locked for 60 seconds.';
-    blockTimer.value = 60;
-    
-    timerInterval = setInterval(() => {
-        blockTimer.value--;
-        if (blockTimer.value <= 0) {
-            clearInterval(timerInterval);
-            isBlocked.value = false;
-            error.value = '';
-            attempts.value = [];
-        }
-    }, 1000);
-};
 
 onMounted(() => {
     if (window.lucide) window.lucide.createIcons();

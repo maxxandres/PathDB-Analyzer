@@ -63,8 +63,7 @@ const renderTree = () => {
         edges: {
             width: 1,
             color: '#94a3b8',
-            smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 },
-            arrows: 'null'
+            smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 }         
         },
         physics: false, // Disable physics for static tree layout
         interaction: {
