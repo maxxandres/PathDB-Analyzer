@@ -40,9 +40,9 @@ const renderTree = () => {
             hierarchical: {
                 direction: 'UD', // Up-Down
                 sortMethod: 'directed',
-                levelSeparation: 100, // Increased for better spacing
-                nodeSpacing: 200,
-                treeSpacing: 200,
+                levelSeparation: 100, // Increased for better vertical spacing
+                nodeSpacing: 250, // Significantly increased to prevent long labels from overlapping horizontally
+                treeSpacing: 250,
                 blockShifting: true,
                 edgeMinimization: true,
                 parentCentralization: true
@@ -50,14 +50,39 @@ const renderTree = () => {
         },
         nodes: {
             shape: 'box',
-            font: { size: 14, face: 'Inter' },
+            font: { 
+                size: 14, 
+                face: 'Inter', 
+                color: '#1e293b',
+                multi: 'html',
+                bold: { size: 14, vadjust: 0, mod: 'bold' },
+                ital: { size: 10, vadjust: 4, mod: 'bold' },
+                mono: { size: 10, vadjust: -8, mod: 'bold' }
+            },
             borderWidth: 1,
+            borderWidthSelected: 3,
             shadow: true,
-            margin: 10,
+            margin: { top: 12, bottom: 12, left: 16, right: 16 },
             color: {
                 background: '#ffffff',
                 border: '#2563eb',
-                highlight: { background: '#eff6ff', border: '#1d4ed8' }
+                highlight: { background: '#dbeafe', border: '#1d4ed8' }
+            },
+            chosen: {
+                node: function(values, id, selected, hovering) {
+                    if (selected) {
+                        values.shadowSize = 15;
+                        values.shadowColor = 'rgba(37, 99, 235, 0.5)';
+                        values.borderColor = '#1d4ed8';
+                    }
+                },
+                label: function(values, id, selected, hovering) {
+                    if (selected) {
+                        values.size = 18;
+                        values.mod = 'bold';
+                        values.color = '#1e3a8a';
+                    }
+                }
             }
         },
         edges: {
@@ -106,8 +131,26 @@ const downloadImage = () => {
     link.click();
 };
 
+const focusNode = (nodeId) => {
+    if (!network) return;
+    network.selectNodes([nodeId]);
+    
+    // Pan to the node but retain the current view scale, or use a general view scale
+    const currentScale = network.getScale();
+    const targetScale = currentScale > 1.2 ? 1.0 : currentScale; // Prevent aggressive zoom
+    
+    network.focus(nodeId, {
+        scale: targetScale,
+        animation: {
+            duration: 800,
+            easingFunction: 'easeInOutQuad'
+        }
+    });
+};
+
 defineExpose({
-    downloadImage
+    downloadImage,
+    focusNode
 });
 
 onMounted(() => {

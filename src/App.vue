@@ -1,7 +1,10 @@
 <template>
   <div :class="['theme-wrapper', currentTheme]">
+    <div v-if="isCheckingSession" class="app-loading-screen">
+      <div class="loader"></div>
+    </div>
     <LoginView 
-      v-if="!isLoggedIn" 
+      v-else-if="!isLoggedIn" 
       :theme="currentTheme"
       @login-success="handleLoginSuccess" 
       @toggle-theme="toggleTheme"
@@ -21,8 +24,10 @@
 import { ref, onMounted, watch } from 'vue'
 import Home from './components/home.vue'
 import LoginView from './components/LoginView.vue'
+import { api } from './services/api'
 
 const isLoggedIn = ref(false)
+const isCheckingSession = ref(true)
 const userSession = ref(null)
 const currentTheme = ref('light') // Default to light
 
@@ -46,15 +51,34 @@ const handleLogout = () => {
   localStorage.removeItem('pathdb_session')
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Load theme first
+  const savedTheme = localStorage.getItem('pathdb_theme')
+  if (savedTheme) {
+    currentTheme.value = savedTheme
+  }
+
   // Load session
   const savedSession = localStorage.getItem('pathdb_session')
   if (savedSession) {
     try {
       const parsed = JSON.parse(savedSession)
       if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
-        isLoggedIn.value = true
-        userSession.value = parsed
+        // Validate with backend
+        try {
+          const newSessionToken = await api.openSession(parsed.loginToken)
+          isLoggedIn.value = true
+          userSession.value = { ...parsed, sessionToken: newSessionToken }
+          // Refresh stored session
+          localStorage.setItem('pathdb_session', JSON.stringify({
+            ...userSession.value,
+            timestamp: Date.now()
+          }))
+        } catch (err) {
+          console.warn('Session validation failed:', err)
+          localStorage.removeItem('pathdb_session')
+          isLoggedIn.value = false
+        }
       } else {
         localStorage.removeItem('pathdb_session')
       }
@@ -63,13 +87,11 @@ onMounted(() => {
     }
   }
 
-  // Load theme
-  const savedTheme = localStorage.getItem('pathdb_theme')
-  if (savedTheme) {
-    currentTheme.value = savedTheme
-  }
+  isCheckingSession.value = false
   
-  if (window.lucide) window.lucide.createIcons()
+  if (window.lucide) {
+    setTimeout(() => { window.lucide.createIcons(); }, 10);
+  }
 })
 
 // Update document body for global CSS variables if needed
@@ -108,5 +130,27 @@ watch(currentTheme, (newTheme) => {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+.app-loading-screen {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary);
+}
+
+.loader {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(59, 130, 246, 0.3);
+  border-radius: 50%;
+  border-top-color: #3b82f6;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
