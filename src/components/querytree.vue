@@ -24,7 +24,7 @@ const renderTree = () => {
     // Ensure Vis is available
     const vis = window.vis;
     if (!vis) {
-        console.error("Vis.js not loaded");
+
         return;
     }
 
@@ -56,8 +56,8 @@ const renderTree = () => {
                 color: '#1e293b',
                 multi: 'html',
                 bold: { size: 14, vadjust: 0, mod: 'bold' },
-                ital: { size: 10, vadjust: 4, mod: 'bold' },
-                mono: { size: 10, vadjust: -8, mod: 'bold' }
+                ital: { size: 10, vadjust: 10, mod: 'bold' },
+                mono: { size: 10, vadjust: -10, mod: 'bold' }
             },
             borderWidth: 1,
             borderWidthSelected: 3,

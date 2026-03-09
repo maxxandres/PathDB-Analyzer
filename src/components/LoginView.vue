@@ -98,7 +98,7 @@ const handleLogin = async () => {
         
         emit('login-success', sessionData);
     } catch (e) {
-        console.error("Login flow failed:", e);
+
         error.value = 'Authentication failed. Please check your credentials.';
     } finally {
         isLoading.value = false;

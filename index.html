@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PathDB Demo</title>
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/libs/tailwindcss.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -21,12 +21,11 @@
       }
     }
   </script>
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Fonts are imported in src/main.js for offline support -->
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Vis.js -->
-  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <!-- Local Icons and Graph Library for offline support -->
+  <script src="/libs/lucide.min.js"></script>
+  <script type="text/javascript" src="/libs/vis-network.min.js"></script>
   <style>
     body {
       font-family: 'Inter', sans-serif;

@@ -39,6 +39,10 @@
                         </div>
                     </div>
 
+                    <button class="presets-action-btn" @click="openGraphModal" style="margin-left: 0.5rem;" title="View Default Graph">
+                        <i data-lucide="image" class="icon-tiny"></i>
+                        Graph
+                    </button>
                 </div>
             </div>
             <div class="header-actions">
@@ -69,9 +73,21 @@
                         <i data-lucide="download" class="icon-tiny"></i>
                         Export Tree
                     </button>
-                </div> -->
+            <!-- Graph Image Modal -->
+            <div v-if="showGraphModal" class="sequence-modal-overlay" @click.self="showGraphModal = false" style="z-index: 9999;">
+                <div class="sequence-modal-content" style="max-width: 80vw; max-height: 80vh; display: flex; flex-direction: column;">
+                    <div class="sequence-modal-header">
+                        <h3 class="sequence-modal-title">Default Graph</h3>
+                        <button @click="showGraphModal = false" class="sequence-modal-close-btn">
+                            <i data-lucide="x" class="icon-small"></i>
+                        </button>
+                    </div>
+                    <div class="sequence-modal-body" style="flex: 1; display: flex; justify-content: center; align-items: center; overflow: auto; padding: 1rem; background-color: var(--bg-secondary);">
+                        <img src="../assets/graph.png" alt="Default Graph" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                    </div>
+                </div>
+            </div>
 
-            
         <div class="content-area" :class="`pos-${panelPosition}`">
             
 
@@ -374,6 +390,14 @@ const pathFilterColumn = ref([]); // Array of active columns: 'source', 'target'
 // Sidebar state
 const sidebarExpanded = ref(false);
 const showPresets = ref(false);
+const showGraphModal = ref(false);
+
+const openGraphModal = () => {
+    showGraphModal.value = true;
+    nextTick(() => {
+        if (window.lucide) window.lucide.createIcons();
+    });
+};
 
 const toggleSegment = (idx) => {
     expandedSegments.value[idx] = !expandedSegments.value[idx];
@@ -432,7 +456,7 @@ const openSequenceModal = async (segments) => {
                         selectedSequence.value[i].properties = nodeProps;
                     }
                 } catch (e) {
-                    console.error("Failed to fetch node details for sequence modal:", e);
+
                 }
             }
         }
@@ -481,12 +505,12 @@ const triggerExport = () => {
 }
 
 const presets = [
-    { label: "Join Example", query: 'MATCH TRAIL p = (x)-[(Knows.Likes)]->(y) where x.name = "Moe" RETURN y.txt;' },
-    { label: "Union Example", query: 'MATCH TRAIL p = (x)-[(Knows|Likes)]->(y) where x.name = "Moe" RETURN y.name,y.txt;' },
-    { label: "Transitive Closure Example", query: 'MATCH TRAIL p = (x)-[(Knows+)]-> (y) RETURN p;'},
-    { label: "Kleene Example", query:'MATCH TRAIL p = (x)-[(Knows*)]-> (y) RETURN p;'},  
-    { label: "Paper Example", query: 'MATCH TRAIL p = (x)-[((Likes.HasCreator)+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3'},
-    { label: "Complex 1 Example", query: 'MATCH TRAIL p = (x)-[((Knows+.Likes))]->(y) WHERE x.name = "Moe" RETURN y.txt;'}
+    { label: "Join Query", query: 'MATCH TRAIL p = (x)-[(Knows.Likes)]->(y) where x.name = "Moe" RETURN y.txt;' },
+    { label: "Union Query", query: 'MATCH TRAIL p = (x)-[(Knows|Likes)]->(y) where x.name = "Moe" RETURN y.name,y.txt;' },
+    { label: "Transitive Closure Query", query: 'MATCH TRAIL p = (x)-[(Knows+)]-> (y) RETURN p;'},
+    { label: "Kleene Query", query:'MATCH TRAIL p = (x)-[(Knows*)]-> (y) RETURN p;'},  
+    { label: "Complex Query 1 ", query: 'MATCH TRAIL p = (x)-[((Likes.HasCreator)+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3'},
+    { label: "Complex Query 2 ", query: 'MATCH TRAIL p = (x)-[((Knows+.Likes))]->(y) WHERE x.name = "Moe" RETURN y.txt;'}
 ];
 
 const loadPreset = (preset) => {
@@ -625,9 +649,9 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
                 queryToRun = rightChild ? generateChildQuery(rightChild, restrictor) : null;
             }
 
-            console.log("------------------------------------------");
-            console.log(`Executing Operator Enrichment (${targetTab}):`, queryToRun);
-            console.log("------------------------------------------");
+
+
+
 
             if (!queryToRun) {
                 // Handle empty query case
@@ -637,6 +661,7 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
             }
 
             // 3. Execute
+            console.log(`[JOIN Node - tab: ${targetTab}] Executing query:`, queryToRun);
             const result = await api.executeQuery(queryToRun, loginToken, sessionToken);
 
             // 4. Process Results (Reusable function)
@@ -719,6 +744,7 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
             }
 
         } else if (operatorType === 'union') {
+             console.log(`[UNION Node] Processing union for:`, node.label);
              const children = treeData.value.edges
                  .filter(e => e.from === node.id)
                  .map(e => treeData.value.nodes.find(nod => nod.id === e.to))
@@ -812,10 +838,9 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
              // Standard single query processing for others
              const query = operatorType === 'root' ? queryInput.value : generateSubtreeQuery(node, operatorType);
              
-             console.log("------------------------------------------");
-             console.log(`Executing Operator Enrichment (${operatorType}):`, query);
-             console.log("------------------------------------------");
              if (!query) return;
+
+             console.log(`[${operatorType.toUpperCase()} Node] Executing query:`, query);
 
              const result = await api.executeQuery(query, loginToken, sessionToken);
              
@@ -882,7 +907,7 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
              }
         }
     } catch (e) {
-        console.error("Error in enrichment:", e);
+
         if (operatorType === 'join') {
             node.apiResults[targetTab] = { success: false, message: "Error executing query" };
         } else {
@@ -996,7 +1021,7 @@ const generateSubtreeQuery = (node, type) => {
         // SELECTION (σ)
         if (label.includes("σ")) {
              // Check if it is a label selection (structural constraint like :Person)
-             const labelMatch = label.match(/label\((?:node|edge)\(\d+\)\)\s*=\s*(\w+)/);
+             const labelMatch = label.match(/label\((?:<sub>|<code>|<i>)?(?:node|edge)\(\d+\)(?:<\/sub>|<\/code>|<\/i>)?\)\s*=\s*(\w+)/);
              if (labelMatch) {
                  return labelMatch[1];
              }
@@ -1274,14 +1299,14 @@ const collectSubtreeFilters = (nodeId) => {
         
         const labelText = node.label || "";
         
-        // Match σ label(edge(1)) = hasCreator
-        const labelSearch = labelText.match(/(?:σ|<b>σ<\/b>)\s+label\((node|edge)\(\d+\)\)\s*=\s*([^\s]+)/);
+        // Match σ label(edge(1)) = hasCreator (also handles <code>, <i> or <sub> wrappers)
+        const labelSearch = labelText.match(/(?:σ|<b>σ<\/b>)\s*label\((?:<sub>|<code>|<i>)?(node|edge)\(\d+\)(?:<\/sub>|<\/code>|<\/i>)?\)\s*=\s*([^\s<]+)/);
         if (labelSearch) {
             filters.type = labelSearch[1];
             filters.label = labelSearch[2];
         } else {
-            // Match σ node(1).name="Moe"
-            const propSearch = labelText.match(/(?:σ|<b>σ<\/b>)\s+(node|edge)\(\d+\)\.([^\s=]+)\s*=\s*["']?([^"']+)["']?/);
+            // Match σ node(1).name="Moe" (also handles <code>, <i> or <sub> wrappers)
+            const propSearch = labelText.match(/(?:σ|<b>σ<\/b>)\s*(?:<sub>|<code>|<i>)?(node|edge)\(\d+\)(?:<\/sub>|<\/code>|<\/i>)?\.([^\s=<]+)\s*=\s*["']?([^"'<]+)["']?/);
             if (propSearch) {
                 filters.type = propSearch[1];
                 filters.properties[propSearch[2]] = propSearch[3];
@@ -1302,6 +1327,7 @@ const collectSubtreeFilters = (nodeId) => {
 const performSearch = async (node, filters) => {
     if (node.apiResults || isLoading.value) return;
 
+    console.log(`[SEARCH Node] Executing search with filters:`, filters);
     isLoading.value = true;
     try {
         const { loginToken, sessionToken } = props.session;
@@ -1369,7 +1395,7 @@ const performSearch = async (node, filters) => {
             }
         }
     } catch (e) {
-        console.error("Search failed:", e);
+
         node.apiResults = {
             success: false,
             message: "Search failed: " + e.message,
@@ -1388,7 +1414,7 @@ const performSearch = async (node, filters) => {
 // Computed property to get data for current selected node
 // Computed property to get data for current selected node
 const currentNodeData = computed(() => {
-    // console.log("Computing currentNodeData for:", selectedNode.value?.label, "Tab:", activeJoinTab.value);
+
     if (!selectedNode.value) return { headers: [], rows: [] };
     
     // If the node has its own result data
@@ -1399,7 +1425,7 @@ const currentNodeData = computed(() => {
         if (res.type === 'join') {
             const activeData = res[activeJoinTab.value]; // 'join', 'left', 'right'
             if (activeData && activeData.success && activeData.data && activeData.data.length > 0) {
-                 // console.log("Has active data:", activeData.data.length);
+
                  return {
                     headers: activeData.data[0].content, 
                     rows: activeData.data.slice(1).map(item => item.content),
@@ -1499,9 +1525,15 @@ const selectedNodeHeader = computed(() => {
         operatorName = "Recursive Join";
         operatorStructure = ` Φ<sup>τ</sup>(S) `;
     } else if (label.includes("σ") || name.toLowerCase().includes("selection")) {
-        const conditionMatch = label.match(/(?:σ|<b>σ<\/b>)\s+(.*)/);
-        const condition = conditionMatch ? conditionMatch[1] : label;
-        title = `<span style="text-transform: none;">σ</span> ${condition}`; // Ensure lowercase sigma is preserved and not capitalized by CSS
+        // Extract condition from tree label format: <b>σ</b><i>[condition]</i> or <b>σ</b> [condition]
+        // Use a more inclusive regex that matches σ with or without <b> and captures the rest
+        const conditionMatch = label.match(/(?:σ|<b>σ)<\/b>?\s*(.*)/i);
+        let rawCondition = conditionMatch ? conditionMatch[1] : label;
+        // Strip ALL tags for the condition title/value to get clean text
+        rawCondition = rawCondition.replace(/<\/?(b|i|code|sub).*?>/g, '').trim();
+        
+        // In Object Viewer title, use <sub> for proper subscripting
+        title = `<span style="text-transform: none;">σ</span><sub>${rawCondition}</sub>`;
         operatorName = "Selection";
         operatorStructure = ` <span class="large-sigma">σ</span><sub>c</sub>(S) `;
     } else if (label.includes("π") || name === "Manual Projection") {
@@ -1577,8 +1609,11 @@ const selectedNodeParams = computed(() => {
         params.push({ key: "Restrictor (τ)", value: restrictor });
     } else if (label.includes("σ") || label.startsWith("Selection")) {
         // Selection
-        const conditionMatch = label.match(/(?:σ|<b>σ<\/b>)\s+(.*)/);
-        const condition = conditionMatch ? conditionMatch[1] : label;
+        const conditionMatch = label.match(/(?:σ|<b>σ)<\/b>?\s*(.*)/i);
+        let condition = conditionMatch ? conditionMatch[1] : label;
+        // Strip ALL tags for the params list to avoid italics/mono/bold rendering
+        condition = condition.replace(/<\/?(b|i|code|sub).*?>/g, '').trim();
+        
         if (children[0]) params.push({ key: "Path Set (S)", node: children[0] });
         params.push({ key: "Selection condition (C)", value: condition });
     } else if (label.includes("π") || selectedNode.value.properties?.Name === "Manual Projection") {
@@ -1609,7 +1644,7 @@ const selectedNodeParams = computed(() => {
 const pathTableData = computed(() => {
     if (!currentNodeData.value.data) return [];
     
-    // console.log("Raw Data for Path Table:", currentNodeData.value.data);
+
 
     return currentNodeData.value.data
         .filter(item => item.segments && item.segments.length > 0)
@@ -1907,7 +1942,7 @@ const runQuery = async () => {
         let plan;
         if (treeMode.value === 'logical') {
             plan = await api.getQueryTree(queryInput.value, loginToken, sessionToken);
-         
+            console.log("LOGICAL PLAN FROM API:", JSON.stringify(plan, null, 2));
         } else {
             plan = await api.getRawQueryTree(queryInput.value, loginToken, sessionToken);
         }
@@ -1938,7 +1973,7 @@ const runQuery = async () => {
             }
         });
     } catch (e) {
-        console.error("Query execution error:", e);
+
         // Fallback or show error
         treeData.value = { 
             nodes: [{ id: 1, label: "Error", color: { background: '#ffffff' }, properties: { Error: e.message } }], 
@@ -1961,13 +1996,19 @@ const transformLogicalPlan = (plan, query = "") => {
     let queryRestrictor = "WALK"; // Default
     const restrictorMatch = query.match(/MATCH\s+(TRAIL|SIMPLE|ACYCLIC|WALK)/i);
     if (restrictorMatch) {
-        queryRestrictor = restrictorMatch[1].toUpperCase();
+        const r = restrictorMatch[1];
+        queryRestrictor = r.charAt(0).toUpperCase() + r.slice(1).toLowerCase();
     }
 
     // Helper to convert number to superscript
     const toSuperscript = (num) => {
         const sups = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
         return String(num).split('').map(d => sups[d] || d).join('');
+    };
+
+    // Helper to wrap node(...) / edge(...) references in <sub> tags for σ labels
+    const subscriptNodeRefs = (str) => {
+        return str.replace(/(node|edge)(\([^)]+\))/g, '<sub>$1$2</sub>');
     };
 
     // Helper to count selection nodes in a branch
@@ -2015,8 +2056,8 @@ const transformLogicalPlan = (plan, query = "") => {
             const labelMatch = details.match(/Label\(([^)]+)\)/);
             const extractedLabel = labelMatch ? labelMatch[1] : "unknown";
             
-            // 1. Create the Selection node (σ)
-            const selectionLabel = `<b>σ</b> label(edge(1)) = ${extractedLabel}`;
+            // 1. Create the Selection node (σ) - use <i> for subscript in tree
+            const selectionLabel = `<b>σ</b><i>label(edge(1)) = ${extractedLabel}</i>`;
             nodes.push({ 
                 id, 
                 label: selectionLabel, 
@@ -2032,7 +2073,7 @@ const transformLogicalPlan = (plan, query = "") => {
             const childId = idCounter++;
             nodes.push({
                 id: childId,
-                label: "<b>Paths₁(G)</b>",
+                label: "Paths₁(G)",
                 color: { background: "#ffffff" },
                 properties: { Name: "Paths₁(G)", Details: "Base Relation" }
             });
@@ -2081,9 +2122,9 @@ const transformLogicalPlan = (plan, query = "") => {
                             return modExpr;
                         });
                         
-                        label = `<b>σ</b> ${formattedExprs.join(' , ')}`;
+                        label = `<b>σ</b><i>${formattedExprs.join(' , ')}</i>`;
                     } else {
-                        label = `<b>σ</b> ${condition}`;
+                        label = `<b>σ</b><i>${condition}</i>`;
                     }
                 } else {
                     if (queryInput.value) {
@@ -2150,13 +2191,13 @@ const transformLogicalPlan = (plan, query = "") => {
                     if (condition && !condition.startsWith('node(') && !condition.startsWith('edge(') && !condition.startsWith('label(')) {
                         condition = `${detectedPrefix}.${condition}`;
                     }
-                    label = `<b>σ</b> ${condition}`;
+                    label = `<b>σ</b><i>${condition}</i>`;
                 }
             } else if (lowName.includes('union')) {
                 color = "#ffffff";
                 label = `<b>∪</b> <code>${queryRestrictor}</code>`;
             } else if (lowName === 'allnodes') {
-                label = "<b>Paths₀(G)</b>";
+                label = "Paths₀(G)";
             }
         }
         
@@ -3099,11 +3140,11 @@ onMounted(() => {
 }
 
 .details-title {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
+    letter-spacing: 0.08em;
+    color: var(--text-primary);
 }
 
 .close-btn {
@@ -3832,6 +3873,7 @@ onMounted(() => {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.875rem;
+    table-layout: fixed;
 }
 
 .premium-table th {
@@ -4327,7 +4369,7 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.25rem 1.5rem;
+    padding: 0.5rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
     background-color: var(--bg-secondary);
 }
@@ -4534,11 +4576,12 @@ onMounted(() => {
     align-items: center;
     flex-wrap: wrap; /* allow wrapping if too long */
     gap: 0.5rem;
-    font-size: 0.8125rem;
+    font-size: 0.8rem;
 }
 
 .param-key {
     font-weight: 600;
+    font-size: 0.8rem;
     color: var(--text-primary);
 }
 
@@ -4548,10 +4591,11 @@ onMounted(() => {
 }
 
 .generic-title {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
+    font-size: 0.9rem;
+    color: var(--text-primary);
     margin-bottom: 0.25rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.01em;
 }
 
 .header-divider {
@@ -4564,7 +4608,7 @@ onMounted(() => {
 }
 
 .operator-info-line {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     margin-bottom: 0.5rem;
     display: flex;
     gap: 0.5rem;

@@ -58,7 +58,7 @@ export const api = {
             result = await response.json();
         } catch (e) {
             const text = await response.text();
-            console.error("No response from server:", text);
+
             throw new Error(`Server error: ${response.status} ${response.statusText}`);
         }
 

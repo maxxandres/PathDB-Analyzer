@@ -75,7 +75,7 @@ onMounted(async () => {
             timestamp: Date.now()
           }))
         } catch (err) {
-          console.warn('Session validation failed:', err)
+
           localStorage.removeItem('pathdb_session')
           isLoggedIn.value = false
         }
