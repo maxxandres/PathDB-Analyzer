@@ -43,6 +43,10 @@
                         <i data-lucide="image" class="icon-tiny"></i>
                         Graph
                     </button>
+                    <button class="presets-action-btn" @click="openStatsModal" style="margin-left: 0.5rem;" title="View Statistics Summary">
+                        <i data-lucide="bar-chart-2" class="icon-tiny"></i>
+                        Statistics
+                    </button>
                 </div>
             </div>
             <div class="header-actions">
@@ -73,6 +77,69 @@
                         <i data-lucide="download" class="icon-tiny"></i>
                         Export Tree
                     </button>
+            <!-- Stats Modal -->
+            <div v-if="showStatsModal" class="sequence-modal-overlay" @click.self="closeStatsModal" style="z-index: 9999;">
+                <div class="sequence-modal-content" style="width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
+                    <div class="sequence-modal-header">
+                        <h3 class="sequence-modal-title">Query Statistics</h3>
+                        <button @click="closeStatsModal" class="sequence-modal-close-btn" style="margin-left: auto;">
+                            <i data-lucide="x" class="icon-small"></i>
+                        </button>
+                    </div>
+                    <div class="sequence-modal-body" style="flex: 1; padding: 1.5rem; background-color: var(--bg-secondary); display: flex; gap: 1.5rem; overflow: hidden;">
+                        
+                        <!-- Left: Table -->
+                        <div style="flex: 1.2; overflow-y: auto; background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); max-width: 50%; display: flex; flex-direction: column;">
+                            <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Metrics Summary</h4>
+                            
+                            <div class="table-container-scroll" style="margin-bottom: 1rem;">
+                                <table class="premium-table" style="font-size: 0.8em; text-align: center; white-space: nowrap;">
+                                    <thead>
+                                        <tr>
+                                            <th v-for="header in chartDataRef.headers" :key="header">{{ header }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(row, idx) in chartDataRef.rows" :key="idx">
+                                            <td v-for="(cell, cidx) in row" :key="cidx" :title="cidx === 0 ? cell : undefined" :style="cidx === 0 ? 'max-width: 280px; min-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left;' : ''">{{ cell }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Boton de agrupación -->
+                            <button @click="aggregateNodes = !aggregateNodes; reDrawCharts()" class="action-btn" style="margin-bottom: 1rem; width: 100%; justify-content: center; border: 1px solid var(--border-color);">
+                                <i :data-lucide="aggregateNodes ? 'minus-circle' : 'plus-circle'" class="icon-tiny"></i>
+                                {{ aggregateNodes ? "Ungroup Nodes" : "Group Similar Nodes" }}
+                            </button>
+                        </div>
+
+                        <!-- Right: Grid of Charts -->
+                        <div style="flex: 2; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1rem; overflow-y: auto; min-height: 0;">
+                            <div v-for="metric in statsMetrics" :key="metric" style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; min-height: 0;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <h5 style="color: var(--text-primary); margin: 0;">{{ metric }}</h5>
+                                    <select v-model="chartTypes[metric]" @change="drawStatsChart(metric)" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.8rem; cursor: pointer;">
+                                        <option value="bar">Bar</option>
+                                        <option value="pie">Pie</option>
+                          
+                                    </select>
+                                </div>
+                                <div style="flex: 1; position: relative; min-height: 0; width: 100%;">
+                                    <canvas :id="'statsChartCanvas_' + metric.replace(/ /g, '_')" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="statsMetrics.length === 0" class="empty-state" style="width: 100%;">
+                            <i data-lucide="bar-chart-2" class="empty-icon" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
+                            <h2 class="empty-title">No Statistics Available</h2>
+                            <p class="empty-desc">The current node data does not have numeric statistics to chart.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Graph Image Modal -->
             <div v-if="showGraphModal" class="sequence-modal-overlay" @click.self="showGraphModal = false" style="z-index: 9999;">
                 <div class="sequence-modal-content" style="max-width: 80vw; max-height: 80vh; display: flex; flex-direction: column;">
@@ -213,8 +280,34 @@
                              <span class="info-value" v-html="selectedNodeHeader.operatorStructure"></span>
                          </div>
 
-                         <!-- Node Parameters -->
-                         <div v-if="selectedNodeParams" class="node-parameters-container">
+                         <!-- Execution Statistics (Metrics) moved up -->
+                         <div class="node-statistics-container" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                             <!-- Title removed as requested -->
+                             <div class="table-container-scroll">
+                                 <table class="premium-table" style="font-size: 0.65em; text-align: center; white-space: nowrap;">
+                                     <thead>
+                                         <tr>
+                                             <th title="The time required to complete the execution of an operation or query.">Runtime (ms)</th>
+                                             <th title="Is the ratio of the number of rows that satisfy a condition (output) to the total number of rows processed (input). High Selectivity (WHERE id = '123') vs Low Selectivity (WHERE gender = 'Female').">Selectivity</th>
+                                             <th title="The estimated or actual number of solutions. Cardinality = Total Input Rows × Selectivity.">Cardinality (paths)</th>
+                                             <th title="The total number of operations or queries a system can process within a specific time period. (Paths / ms)">Throughput (paths/ms)</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody>
+                                         <tr v-if="selectedNode" :key="'stat-'+selectedNode.id">
+                                             <td>{{ getMockNodeStats(selectedNode.label).runtime }}</td>
+                                             <td>{{ getMockNodeStats(selectedNode.label).selectivity }}</td>
+                                             <td>{{ getMockNodeStats(selectedNode.label).cardinality }}</td>
+                                             <td>{{ getMockNodeStats(selectedNode.label).throughput }}</td>
+                                         </tr>
+                                     </tbody>
+                                 </table>
+                             </div>
+                         </div>
+
+                         <!-- Node Parameters (comentado) -->
+                         <!-- TAG: comentado
+                         <div v-if="selectedNodeParams" class="node-parameters-container" style="display: none;">
                              <div class="params-list">
                                  <div v-for="(param, idx) in selectedNodeParams" :key="idx" class="param-item">
                                      <span class="param-key">- {{ param.key }} :</span>
@@ -224,17 +317,18 @@
                                  </div>
                              </div>
                          </div>
+                         -->
                      </div>
 
                      <!-- Data Content -->
                      <div v-if="currentNodeData.rows">
 
-                         <div v-if="pathTableData.length > 0" class="path-results-container">
-                             <div class="results-header-wrapper">
-                                 <h3 class="data-title">
+                         <div v-if="currentNodeData.rows && currentNodeData.rows.length > 0" class="path-results-container">
+                             <div class="results-header-wrapper" style="display: flex; justify-content: space-between; align-items: center;">
+                                 <h3 class="data-title" style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
                                      <i data-lucide="database" class="icon-tiny"></i>
                                      Results 
-                                     <span class="path-count-badge">
+                                     <span class="path-count-badge" v-if="pathTableData.length > 0">
                                          <template v-if="pathSearchQuery || pathFilterColumn.length > 0">
                                              {{ filteredPathTableData.length }} matching / {{ pathTableData.length }} total
                                          </template>
@@ -242,8 +336,14 @@
                                              {{ pathTableData.length }} paths
                                          </template>
                                      </span>
+                                     <span class="path-count-badge" v-else>
+                                         {{ currentNodeData.rows.length }} rows
+                                     </span>
+                                     <button @click="showResultsTable = !showResultsTable" style="margin-left: 0.5rem; background-color: #3b82f6; color: white; border: none; border-radius: 4px; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 0.2s;">
+                                         <i :data-lucide="showResultsTable ? 'chevron-up' : 'chevron-down'" class="icon-tiny" style="color: white; stroke-width: 3px;"></i>
+                                     </button>
                                  </h3>
-                                 <div class="unified-search-wrapper">
+                                 <div class="unified-search-wrapper" v-if="showResultsTable" style="margin-left: auto;">
                                      <i data-lucide="search" class="icon-xtiny"></i>
                                      <input v-model="pathSearchQuery" type="text" 
                                             :placeholder="pathFilterColumn.length === 0 ? 'Search all columns...' : `Search in: ${pathFilterColumn.join(', ')}...`"
@@ -253,92 +353,94 @@
                          </div>
                         
                         <!-- Results Content -->
-                        <template v-if="currentNodeData.data && currentNodeData.data[0]?.segments">
-                            <!-- mode: table (Path Table View) -->
-                            <div class="path-table-view">
+                        <div v-show="showResultsTable" style="width: 100%;">
+                            <template v-if="currentNodeData.data && currentNodeData.data[0]?.segments">
+                                <!-- mode: table (Path Table View) -->
+                                <div class="path-table-view">
 
 
-                                <!-- Path Table - Now at the bottom (Always visible) -->
+                                    <!-- Path Table - Now at the bottom (Always visible) -->
+                                    <div class="table-container-scroll">
+                                        <table class="premium-table">
+                                             <thead>
+                                                <tr>
+                                                    <th @click="setTableSort('source')" :class="{ 'active-filter': pathFilterColumn.includes('source') }">
+                                                        <button class="sort-btn" @click.stop="toggleSort('source')" :class="{ 'active': tableSortKey === 'source' }">
+                                                            <span class="sort-icon">{{ tableSortKey === 'source' && tableSortOrder === 1 ? '↑' : '↓' }}</span>
+                                                        </button>
+                                                        <span v-if="pathFilterColumn.includes('source')" class="filter-emoji">🔍</span>
+                                                        Source
+                                                    </th>
+                                                    <th @click="setTableSort('target')" :class="{ 'active-filter': pathFilterColumn.includes('target') }">
+                                                        <button class="sort-btn" @click.stop="toggleSort('target')" :class="{ 'active': tableSortKey === 'target' }">
+                                                            <span class="sort-icon">{{ tableSortKey === 'target' && tableSortOrder === 1 ? '↑' : '↓' }}</span>
+                                                        </button>
+                                                        <span v-if="pathFilterColumn.includes('target')" class="filter-emoji">🔍</span>
+                                                        Target
+                                                    </th>
+                                                    <th @click="setTableSort('length')" :class="{ 'active-filter': pathFilterColumn.includes('length') }">
+                                                        <button class="sort-btn" @click.stop="toggleSort('length')" :class="{ 'active': tableSortKey === 'length' }">
+                                                            <span class="sort-icon">{{ tableSortKey === 'length' && tableSortOrder === 1 ? '↑' : '↓' }}</span>
+                                                        </button>
+                                                        <span v-if="pathFilterColumn.includes('length')" class="filter-emoji">🔍</span>
+                                                        Length
+                                                    </th>
+                                                    <th>Sequence</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="row in sortedPathTableData" :key="row.id" 
+                                                    :class="{ 
+                                                        'selected-row': selectedTablePath?.id === row.id && selectedTablePath?.context === activeJoinTab,
+                                                        'highlighted-child-row': isSubPath(row, activeJoinTab)
+                                                    }"
+                                                    @click="selectRowFromTable(row)">
+                                                    <td>{{ row.source }}</td>
+                                                    <td>{{ row.target }}</td>
+                                                    <td>{{ row.length }}</td>
+                                                    <td>
+                                                        <button class="action-btn-small" @click.stop="openSequenceModal(row.segments)">
+                                                            <i data-lucide="eye" class="icon-xtiny"></i> See Path
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Table Display (Only for non-path results) -->
+                            <div v-else class="path-table-view">
                                 <div class="table-container-scroll">
                                     <table class="premium-table">
-                                         <thead>
+                                        <thead>
                                             <tr>
-                                                <th @click="setTableSort('source')" :class="{ 'active-filter': pathFilterColumn.includes('source') }">
-                                                    <button class="sort-btn" @click.stop="toggleSort('source')" :class="{ 'active': tableSortKey === 'source' }">
-                                                        <span class="sort-icon">{{ tableSortKey === 'source' && tableSortOrder === 1 ? '↑' : '↓' }}</span>
-                                                    </button>
-                                                    <span v-if="pathFilterColumn.includes('source')" class="filter-emoji">🔍</span>
-                                                    Source
+                                                <th v-for="(header, idx) in currentNodeData.headers" :key="idx">
+                                                    {{ header }}
                                                 </th>
-                                                <th @click="setTableSort('target')" :class="{ 'active-filter': pathFilterColumn.includes('target') }">
-                                                    <button class="sort-btn" @click.stop="toggleSort('target')" :class="{ 'active': tableSortKey === 'target' }">
-                                                        <span class="sort-icon">{{ tableSortKey === 'target' && tableSortOrder === 1 ? '↑' : '↓' }}</span>
-                                                    </button>
-                                                    <span v-if="pathFilterColumn.includes('target')" class="filter-emoji">🔍</span>
-                                                    Target
-                                                </th>
-                                                <th @click="setTableSort('length')" :class="{ 'active-filter': pathFilterColumn.includes('length') }">
-                                                    <button class="sort-btn" @click.stop="toggleSort('length')" :class="{ 'active': tableSortKey === 'length' }">
-                                                        <span class="sort-icon">{{ tableSortKey === 'length' && tableSortOrder === 1 ? '↑' : '↓' }}</span>
-                                                    </button>
-                                                    <span v-if="pathFilterColumn.includes('length')" class="filter-emoji">🔍</span>
-                                                    Length
-                                                </th>
-                                                <th>Sequence</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr v-for="row in sortedPathTableData" :key="row.id" 
-                                                :class="{ 
-                                                    'selected-row': selectedTablePath?.id === row.id && selectedTablePath?.context === activeJoinTab,
-                                                    'highlighted-child-row': isSubPath(row, activeJoinTab)
-                                                }"
-                                                @click="selectRowFromTable(row)">
-                                                <td>{{ row.source }}</td>
-                                                <td>{{ row.target }}</td>
-                                                <td>{{ row.length }}</td>
-                                                <td>
-                                                    <button class="action-btn-small" @click.stop="openSequenceModal(row.segments)">
-                                                        <i data-lucide="eye" class="icon-xtiny"></i> See Path
-                                                    </button>
+                                            <tr v-for="(row, rowIdx) in currentNodeData.rows" :key="rowIdx"
+                                                :class="{ 'selected-row': expandedRow === rowIdx }"
+                                                @click="toggleRow(rowIdx)">
+                                                <td v-for="(cell, cellIdx) in row" :key="cellIdx" :title="isPathCell(cell) ? 'Path Data' : cell">
+                                                    <span v-if="cell === null || cell === undefined || cell === ''" class="null-value">(null)</span>
+                                                    <template v-else-if="isPathCell(cell)">
+                                                        <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                                            <span style="font-weight: 500; font-size: 0.85rem; color: var(--text-primary);">Path {{ rowIdx + 1 }}</span>
+                                                            <button class="action-btn-small" @click.stop="openSequenceModal(parsePathCell(cell))">
+                                                                <i data-lucide="eye" class="icon-xtiny"></i> See Path
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                    <span v-else>{{ cell }}</span>
                                                 </td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
-                            </div>
-                        </template>
-
-                        <!-- Table Display (Only for non-path results) -->
-                        <div v-else class="path-table-view">
-                            <div class="table-container-scroll">
-                                <table class="premium-table">
-                                    <thead>
-                                        <tr>
-                                            <th v-for="(header, idx) in currentNodeData.headers" :key="idx">
-                                                {{ header }}
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="(row, rowIdx) in currentNodeData.rows" :key="rowIdx"
-                                            :class="{ 'selected-row': expandedRow === rowIdx }"
-                                            @click="toggleRow(rowIdx)">
-                                            <td v-for="(cell, cellIdx) in row" :key="cellIdx" :title="isPathCell(cell) ? 'Path Data' : cell">
-                                                <span v-if="cell === null || cell === undefined || cell === ''" class="null-value">(null)</span>
-                                                <template v-else-if="isPathCell(cell)">
-                                                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                                                        <span style="font-weight: 500; font-size: 0.85rem; color: var(--text-primary);">Path {{ rowIdx + 1 }}</span>
-                                                        <button class="action-btn-small" @click.stop="openSequenceModal(parsePathCell(cell))">
-                                                            <i data-lucide="eye" class="icon-xtiny"></i> See Path
-                                                        </button>
-                                                    </div>
-                                                </template>
-                                                <span v-else>{{ cell }}</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                         
@@ -359,9 +461,10 @@
 
 <script setup>
 import { ref, onMounted, nextTick, computed, watch } from 'vue';
-import QueryTree from './QueryTree.vue';
+import QueryTree from './querytree.vue';
 import QueryInput from './QueryInput.vue';
 import { api } from '../services/api';
+import Chart from 'chart.js/auto';
 
 const props = defineProps(['session', 'theme']);
 const emit = defineEmits(['node-select', 'logout', 'toggle-theme']);
@@ -380,6 +483,7 @@ const tableSortKey = ref('length');
 const tableSortOrder = ref(-1); // -1 for descending, 1 for ascending
 const selectedTablePath = ref(null);
 const showPathTable = ref(true);
+const showResultsTable = ref(false);
 const panelPosition = ref('right'); // 'right' or 'bottom'
 const activeJoinTab = ref('join'); // 'join', 'left', 'right'
 
@@ -391,6 +495,208 @@ const pathFilterColumn = ref([]); // Array of active columns: 'source', 'target'
 const sidebarExpanded = ref(false);
 const showPresets = ref(false);
 const showGraphModal = ref(false);
+
+// Stats Modal logic
+const showStatsModal = ref(false);
+const statsMetrics = ref([]);
+const selectedMetric = ref('');
+let chartInstances = {};
+const chartDataRef = ref(null);
+const chartTypes = ref({});
+const aggregateNodes = ref(false);
+
+const getMockNodeStats = (label) => {
+    if (!label) return { runtime: 0, selectivity: 0, cardinality: 0, throughput: 0 };
+    const l = label.toLowerCase();
+    if (l.includes('paths')) return { runtime: 5, selectivity: 0.8, cardinality: 100, throughput: 20 };
+    if (l.includes('σ') || l.includes('selection') || l.includes('label')) return { runtime: 4, selectivity: 0.4, cardinality: 80, throughput: 20 };
+    if (l.includes('φ') || l.includes('recursive')) return { runtime: 10, selectivity: 0.1, cardinality: 1000, throughput: 100 };
+    if (l.includes('π') || l.includes('projection')) return { runtime: 2, selectivity: 0.05, cardinality: 3, throughput: 1.5 };
+    // Default fallback
+    return { runtime: 3, selectivity: 0.5, cardinality: 50, throughput: 16.6 };
+};
+
+const rawFakeStats = {
+    headers: ['Operator', 'Runtime (ms)', 'Selectivity', 'Cardinality', 'Throughput (paths/ms)'],
+    rows: [
+        ['Paths_1: (p1)', 5, 0.8, 100, 20],
+        ['Selection: (name="Moe")', 4, 0.4, 80, 20],
+        ['Recursive: (Knows+)', 10, 0.1, 1000, 100],
+        ['Selection: (age>30)', 3, 0.5, 300, 100],
+        ['Projection: (len()+1.txt)', 2, 0.05, 3, 1.5]
+    ]
+};
+
+const processChartData = () => {
+    let dataToUse = JSON.parse(JSON.stringify(rawFakeStats)); // deep copy
+    
+    // To use real data in the future, uncomment and replace rawFakeStats
+    /*
+    if (currentNodeData.value && currentNodeData.value.headers && currentNodeData.value.rows && currentNodeData.value.rows.length > 0) {
+        dataToUse = { headers: currentNodeData.value.headers, rows: JSON.parse(JSON.stringify(currentNodeData.value.rows)) };
+    }
+    */
+    
+    if (aggregateNodes.value) {
+        const aggregated = {};
+        dataToUse.rows.forEach(row => {
+            // Extract the base name (e.g., "Selection" from "Selection: (name='Moe')")
+            const name = String(row[0]).includes(':') ? String(row[0]).split(':')[0].trim() : String(row[0]).split(' ')[0].trim();
+            if (!aggregated[name]) {
+                aggregated[name] = [...row];
+                aggregated[name][0] = name; // Update label to base name
+            } else {
+                // Sum numeric columns
+                for (let i = 1; i < row.length; i++) {
+                    aggregated[name][i] += row[i];
+                }
+            }
+        });
+        dataToUse.rows = Object.values(aggregated);
+    }
+    
+    return dataToUse;
+};
+
+const reDrawCharts = () => {
+    chartDataRef.value = processChartData(); // Update the table
+    nextTick(() => {
+        if (statsMetrics.value.length > 0) {
+            statsMetrics.value.forEach(metric => drawStatsChart(metric));
+        }
+    });
+};
+
+const openStatsModal = () => {
+    statsMetrics.value = [];
+    selectedMetric.value = '';
+    
+    chartDataRef.value = processChartData();
+    const headers = chartDataRef.value.headers;
+    
+    // Identify numeric columns by checking if any row contains a valid number for that column
+    for (let i = 1; i < headers.length; i++) {
+        const isNum = chartDataRef.value.rows.some(r => {
+            const f = parseFloat(r[i]);
+            return !isNaN(f) && isFinite(f);
+        });
+        if (isNum) {
+            statsMetrics.value.push(headers[i]);
+            if (!chartTypes.value[headers[i]]) {
+                chartTypes.value[headers[i]] = 'bar'; // Default initialize to bar
+            }
+        }
+    }
+    
+    showStatsModal.value = true;
+    nextTick(() => {
+        if (window.lucide) window.lucide.createIcons();
+        if (statsMetrics.value.length > 0) {
+            statsMetrics.value.forEach(metric => drawStatsChart(metric));
+        }
+    });
+};
+
+const closeStatsModal = () => {
+    showStatsModal.value = false;
+    Object.values(chartInstances).forEach(chart => {
+        if (chart) chart.destroy();
+    });
+    chartInstances = {};
+};
+
+const drawStatsChart = (metric) => {
+    selectedMetric.value = metric;
+    
+    const dataToUse = chartDataRef.value;
+    if (!dataToUse || !dataToUse.rows) return;
+    
+    const headers = dataToUse.headers;
+    const metricIndex = headers.indexOf(metric);
+    const labelIndex = 0; // Usually Operator/paths name is first column
+    
+    const labels = [];
+    const data = [];
+    
+    dataToUse.rows.forEach((row, index) => {
+        // Fallback for unlabeled rows
+        labels.push(String(row[labelIndex] || `Row ${index + 1}`));
+        const val = parseFloat(row[metricIndex]);
+        data.push(isNaN(val) ? 0 : val);
+    });
+    
+    // Draw Delay for DOM
+    nextTick(() => {
+        const ctx = document.getElementById('statsChartCanvas_' + metric.replace(/ /g, '_'));
+        if (!ctx) return;
+        
+        if (chartInstances[metric]) {
+            chartInstances[metric].destroy();
+        }
+        
+        // As requested: user-selected chart type specific to this metric
+        let type = chartTypes.value[metric] || 'bar';
+        
+        chartInstances[metric] = new Chart(ctx, {
+            type: type,
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: metric,
+                    data: data,
+                    backgroundColor: [
+                        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#eab308'
+                    ],
+                    borderColor: '#ffffff',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { display: false },
+                    legend: { display: (type === 'pie' || type === 'doughnut'), position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                
+                                let valueToDisplay = '';
+                                
+                                if (type === 'pie') {
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((acc, curr) => acc + (typeof curr === 'number' ? curr : parseFloat(curr)), 0);
+                                    
+                                    if (total > 0) {
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        valueToDisplay = `${value} (${percentage}%)`;
+                                    } else {
+                                        valueToDisplay = `${value}`;
+                                    }
+                                } else if (type === 'doughnut') {
+                                    valueToDisplay = `${context.parsed}`;
+                                } else {
+                                    if (context.parsed.y !== null && context.parsed.y !== undefined) {
+                                        valueToDisplay = context.parsed.y;
+                                    } else if (context.parsed !== null && context.parsed !== undefined) {
+                                        valueToDisplay = context.parsed;
+                                    }
+                                }
+                                
+                                return label + valueToDisplay;
+                            }
+                        }
+                    }
+                },
+                scales: (type === 'pie' || type === 'doughnut') ? {} : { y: { beginAtZero: true } }
+            }
+        });
+    });
+};
 
 const openGraphModal = () => {
     showGraphModal.value = true;
@@ -3881,7 +4187,7 @@ onMounted(() => {
     padding: 0.75rem 1rem;
     text-align: left;
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-secondary);
