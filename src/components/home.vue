@@ -71,75 +71,13 @@
             </div>
         </header>
 
-                    <!-- Export Tree Button
-                <div v-if="treeData" class="panel-header-actions">
+                    <!-- Export Tree Button -->
+                <!-- <div v-if="logicalTreeData" class="panel-header-actions">
                     <button @click="triggerExport" class="export-btn" title="Export as PNG">
                         <i data-lucide="download" class="icon-tiny"></i>
                         Export Tree
                     </button>
-            <!-- Stats Modal -->
-            <div v-if="showStatsModal" class="sequence-modal-overlay" @click.self="closeStatsModal" style="z-index: 9999;">
-                <div class="sequence-modal-content" style="width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column;">
-                    <div class="sequence-modal-header">
-                        <h3 class="sequence-modal-title">Query Statistics</h3>
-                        <button @click="closeStatsModal" class="sequence-modal-close-btn" style="margin-left: auto;">
-                            <i data-lucide="x" class="icon-small"></i>
-                        </button>
-                    </div>
-                    <div class="sequence-modal-body" style="flex: 1; padding: 1.5rem; background-color: var(--bg-secondary); display: flex; gap: 1.5rem; overflow: hidden;">
-                        
-                        <!-- Left: Table -->
-                        <div style="flex: 1.2; overflow-y: auto; background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); max-width: 50%; display: flex; flex-direction: column;">
-                            <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Metrics Summary</h4>
-                            
-                            <div class="table-container-scroll" style="margin-bottom: 1rem;">
-                                <table class="premium-table" style="font-size: 0.8em; text-align: center; white-space: nowrap;">
-                                    <thead>
-                                        <tr>
-                                            <th v-for="header in chartDataRef.headers" :key="header">{{ header }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="(row, idx) in chartDataRef.rows" :key="idx">
-                                            <td v-for="(cell, cidx) in row" :key="cidx" :title="cidx === 0 ? cell : undefined" :style="cidx === 0 ? 'max-width: 280px; min-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left;' : ''">{{ cell }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <!-- Boton de agrupación -->
-                            <button @click="aggregateNodes = !aggregateNodes; reDrawCharts()" class="action-btn" style="margin-bottom: 1rem; width: 100%; justify-content: center; border: 1px solid var(--border-color);">
-                                <i :data-lucide="aggregateNodes ? 'minus-circle' : 'plus-circle'" class="icon-tiny"></i>
-                                {{ aggregateNodes ? "Ungroup Nodes" : "Group Similar Nodes" }}
-                            </button>
-                        </div>
-
-                        <!-- Right: Grid of Charts -->
-                        <div style="flex: 2; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1rem; overflow-y: auto; min-height: 0;">
-                            <div v-for="metric in statsMetrics" :key="metric" style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; min-height: 0;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                                    <h5 style="color: var(--text-primary); margin: 0;">{{ metric }}</h5>
-                                    <select v-model="chartTypes[metric]" @change="drawStatsChart(metric)" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.8rem; cursor: pointer;">
-                                        <option value="bar">Bar</option>
-                                        <option value="pie">Pie</option>
-                          
-                                    </select>
-                                </div>
-                                <div style="flex: 1; position: relative; min-height: 0; width: 100%;">
-                                    <canvas :id="'statsChartCanvas_' + metric.replace(/ /g, '_')" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></canvas>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="statsMetrics.length === 0" class="empty-state" style="width: 100%;">
-                            <i data-lucide="bar-chart-2" class="empty-icon" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
-                            <h2 class="empty-title">No Statistics Available</h2>
-                            <p class="empty-desc">The current node data does not have numeric statistics to chart.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+                </div> -->
             <!-- Graph Image Modal -->
             <div v-if="showGraphModal" class="sequence-modal-overlay" @click.self="showGraphModal = false" style="z-index: 9999;">
                 <div class="sequence-modal-content" style="max-width: 80vw; max-height: 80vh; display: flex; flex-direction: column;">
@@ -155,24 +93,37 @@
                 </div>
             </div>
 
-        <div class="content-area" :class="`pos-${panelPosition}`">
-            
-
-
-                <div v-if="!treeData" class="empty-state">
-                    <div class="empty-icon-wrapper">
-                        <i data-lucide="tree-deciduous" class="empty-icon"></i>
-                    </div>
-                    <h2 class="empty-title">No Query Executed</h2>
-                    <p class="empty-desc">
-                        Write a query and run it to see the Query Tree.
-                    </p>
+        
+        <div class="content-area carousel-view" :class="`pos-${panelPosition}`">
+            <div v-if="!logicalTreeData" class="empty-state">
+                <div class="empty-icon-wrapper">
+                    <i data-lucide="tree-deciduous" class="empty-icon"></i>
                 </div>
+                <h2 class="empty-title">No Query Executed</h2>
+                <p class="empty-desc">
+                    Write a query and run it to see the Query Analysis Carousel.
+                </p>
+            </div>
 
-                <div v-else class="tree-wrapper" style="position: relative;">
-                    <QueryTree ref="treeRef" :treeData="treeData" @node-select="handleNodeSelect" />
-                    
-                    <!-- Sequence Detail Modal (Now in Canvas side) -->
+            <div v-else class="carousel-container" :style="activeCardIndex === 3 ? 'max-width: 98vw; width: 98vw;' : ''">
+                <button class="nav-arrow left-arrow" @click="activeCardIndex = activeCardIndex > 0 ? activeCardIndex - 1 : 3">
+                    <i data-lucide="chevron-left" style="width: 2.5rem; height: 2.5rem;" stroke-width="3"></i>
+                </button>
+
+                <div class="carousel-card" :style="activeCardIndex === 3 ? 'max-width: 98vw;' : ''">
+                    <div v-show="activeCardIndex === 3" class="card-title-bar">
+                        <i data-lucide="bar-chart-2" class="icon-small"></i>
+                        <h2 class="card-title-text">{{ cardTitles[activeCardIndex] }}</h2>
+                    </div>
+
+                    <div v-show="activeCardIndex < 3" class="tree-card-content">
+                        <!-- Mini Canvas Area -->
+                        <div class="tree-wrapper mini-canvas">
+                            <QueryTree v-show="activeCardIndex === 0" :ref="el => setTreeRef(el, 0)" :treeData="logicalTreeData" @node-select="n => handleNodeSelect(n, 0)" />
+                            <QueryTree v-show="activeCardIndex === 1" :ref="el => setTreeRef(el, 1)" :treeData="optimizedTreeData" @node-select="n => handleNodeSelect(n, 1)" />
+                            <QueryTree v-show="activeCardIndex === 2" :ref="el => setTreeRef(el, 2)" :treeData="physicalTreeData" @node-select="n => handleNodeSelect(n, 2)" />
+                            
+                            <!-- Sequence Detail Modal (Now in Canvas side) -->
                     <div v-if="isSequenceModalOpen" class="sequence-modal-overlay" @click.self="closeSequenceModal">
                         <div class="sequence-modal-content">
                             <div class="sequence-modal-header">
@@ -242,66 +193,43 @@
                     </div>
                 </div>
 
-            <!-- Object Viewer -->
-            <div 
-              class="details-panel" 
-              :class="[{ 'details-open': selectedNode, 'details-closed': !selectedNode }, `panel-${panelPosition}`]"
-              :style="panelPosition === 'right' ? { width: detailsPanelWidth + 'px' } : { height: detailsPanelHeight + 'px' }"
+                        <!-- Object Viewer & Title inside Card -->
+                        <div class="card-details-wrapper">
+                            <!-- Standardized Title -->
+                            <div class="card-title-container">
+                                <h1 class="carousel-card-title">{{ cardTitles[activeCardIndex] }}</h1>
+                            </div>
+                            <div v-show="selectedNode"
+              class="details-panel-static" 
+              style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); width: 85%; max-width: 650px; margin: 0 auto; display: flex; flex-direction: column;"
             >
-                 <!-- Resize Handle -->
-                 <div 
-                   class="resize-handle" 
-                   :class="`handle-${panelPosition}`"
-                   @mousedown="startResize"
-                 ></div>
-                  <div class="details-header">
-                      <div class="details-header-left">
-                          <span class="details-title">Object Viewer</span>
-                      </div>
-                      <button @click="selectedNode = null" class="close-btn">
-                          <i data-lucide="x" class="icon-small"></i>
-                      </button>
-                  </div>
-
+                 <h3 style="margin-top: 0; margin-bottom: 1.2rem; color: var(--text-primary, #333); font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Object Viewer</h3>
                  <div v-if="selectedNode" class="details-content">
                      <!-- Selected Object Header -->
                      <div class="object-header" v-if="selectedNodeHeader">
-                         <div class="generic-title">Algebra Expression:</div>
-                         <div class="object-label" v-html="selectedNodeHeader.title"></div>
-                         
-                         <hr class="header-divider" />
-                         
-                         <div class="operator-info-line">
-                             <span class="info-label">Operator Name:</span>
-                             <span class="info-value">{{ selectedNodeHeader.operatorName }}</span>
-                         </div>
-                         <div class="operator-info-line">
-                             <span class="info-label">Operator structure:</span>
-                             <span class="info-value" v-html="selectedNodeHeader.operatorStructure"></span>
-                         </div>
+                        
+                         <div class="object-label" style="font-size: 1.75rem; color: #3b82f6; font-weight: 600; margin-bottom: 1.5rem;" v-html="selectedNodeHeader.title"></div>
+                   
 
-                         <!-- Execution Statistics (Metrics) moved up -->
-                         <div class="node-statistics-container" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-                             <!-- Title removed as requested -->
-                             <div class="table-container-scroll">
-                                 <table class="premium-table" style="font-size: 0.65em; text-align: center; white-space: nowrap;">
-                                     <thead>
-                                         <tr>
-                                             <th title="The time required to complete the execution of an operation or query.">Runtime (ms)</th>
-                                             <th title="Is the ratio of the number of rows that satisfy a condition (output) to the total number of rows processed (input). High Selectivity (WHERE id = '123') vs Low Selectivity (WHERE gender = 'Female').">Selectivity</th>
-                                             <th title="The estimated or actual number of solutions. Cardinality = Total Input Rows × Selectivity.">Cardinality (paths)</th>
-                                             <th title="The total number of operations or queries a system can process within a specific time period. (Paths / ms)">Throughput (paths/ms)</th>
-                                         </tr>
-                                     </thead>
-                                     <tbody>
-                                         <tr v-if="selectedNode" :key="'stat-'+selectedNode.id">
-                                             <td>{{ getMockNodeStats(selectedNode.label).runtime }}</td>
-                                             <td>{{ getMockNodeStats(selectedNode.label).selectivity }}</td>
-                                             <td>{{ getMockNodeStats(selectedNode.label).cardinality }}</td>
-                                             <td>{{ getMockNodeStats(selectedNode.label).throughput }}</td>
-                                         </tr>
-                                     </tbody>
-                                 </table>
+                         <!-- Execution Statistics (Metrics) listed downwards -->
+                         <div class="node-statistics-container" style="margin-top: 1rem;">
+                             <div v-if="selectedNode">
+                                 <div class="operator-info-line">
+                                     <span class="info-label">Runtime (ms) =</span>
+                                     <span class="info-value">{{ getNodeStats(selectedNode).runtime }}</span>
+                                 </div>
+                                 <div class="operator-info-line">
+                                     <span class="info-label">Selectivity =</span>
+                                     <span class="info-value">{{ getNodeStats(selectedNode).selectivity }}</span>
+                                 </div>
+                                 <div class="operator-info-line">
+                                     <span class="info-label">Cardinality (paths) =</span>
+                                     <span class="info-value">{{ getNodeStats(selectedNode).cardinality }}</span>
+                                 </div>
+                                 <div class="operator-info-line">
+                                     <span class="info-label">Throughput (paths/ms) =</span>
+                                     <span class="info-value">{{ getNodeStats(selectedNode).throughput }}</span>
+                                 </div>
                              </div>
                          </div>
 
@@ -453,6 +381,93 @@
                      <p class="empty-details-text">Select a item in the query tree to inspect its details and data.</p>
                  </div>
             </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Card (3) -->
+                    <div v-if="activeCardIndex === 3" class="statistics-card-content" style="padding: 1.5rem; height: calc(100vh - 200px); overflow: hidden; display: flex; flex-direction: row; gap: 1rem;">
+                        <!-- Left: Table -->
+                        <div style="flex: 1.4; min-width: 0; overflow-y: auto; background: var(--bg-primary); padding: 1rem 1rem 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column;">
+
+                            <div style="overflow-x: auto; flex: 1; margin-bottom: 0.75rem;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.78rem; font-family: 'Inter', sans-serif;">
+                                    <thead>
+                                        <tr>
+                                            <th v-for="(header, hidx) in chartDataRef.headers" :key="header"
+                                                :style="[
+                                                    'padding: 0.45rem 0.6rem;',
+                                                    'text-align: ' + (hidx === 0 ? 'left' : 'center') + ';',
+                                                    'font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;',
+                                                    'color: var(--accent-primary);',
+                                                    'border-bottom: 2px solid var(--border-color);',
+                                                    'white-space: normal; word-break: break-word;',
+                                                    hidx === 0 ? 'min-width: 90px; max-width: 140px;' : 'min-width: 70px;'
+                                                ].join(' ')">
+                                                {{ header }}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(row, idx) in chartDataRef.rows" :key="idx"
+                                            :style="idx % 2 === 0 ? 'background: transparent;' : 'background: var(--bg-secondary);'">
+                                            <td v-for="(cell, cidx) in row" :key="cidx"
+                                                :title="cidx === 0 ? String(cell) : undefined"
+                                                :style="[
+                                                    'padding: 0.4rem 0.6rem;',
+                                                    'border-bottom: 1px solid var(--border-color);',
+                                                    cidx === 0
+                                                        ? 'text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; font-weight: 500; color: var(--text-primary);'
+                                                        : 'text-align: center; color: var(--accent-primary); font-variant-numeric: tabular-nums;'
+                                                ].join(' ')">
+                                                {{ cell }}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Aggregate / Disaggregate Button -->
+                            <button @click="aggregateNodes = !aggregateNodes; reDrawCharts()" class="action-btn" style="margin-top: auto; width: 100%; justify-content: center; border: 1px solid var(--border-color); margin-bottom: 0.25rem;">
+                                <i :data-lucide="aggregateNodes ? 'minus-circle' : 'plus-circle'" class="icon-tiny"></i>
+                                {{ aggregateNodes ? "Disaggregate Nodes" : "Aggregate Nodes" }}
+                            </button>
+                        </div>
+
+                        <!-- Right: Grid of Charts -->
+                        <div style="flex: 1.3; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1rem; overflow-y: auto; min-height: 0; min-width: 0;">
+                            <div v-for="metric in statsMetrics" :key="metric" style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; min-height: 0;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.4rem;">
+                                    <h5 style="color: var(--text-primary); margin: 0; font-size: 0.8rem;">{{ metric }}</h5>
+                                    <div style="display: flex; gap: 0.3rem; align-items: center;">
+                                        <button @click="sortAscending[metric] = !sortAscending[metric]; drawStatsChart(metric)"
+                                            :title="sortAscending[metric] ? 'Unsort' : 'Sort ascending'"
+                                            :style="'padding: 0.15rem 0.35rem; border-radius: 4px; border: 1px solid var(--border-color); background: ' + (sortAscending[metric] ? 'var(--accent-primary)' : 'var(--bg-secondary)') + '; color: ' + (sortAscending[metric] ? '#fff' : 'var(--text-primary)') + '; font-size: 0.7rem; cursor: pointer; line-height: 1;'">
+                                            ↑ Sort
+                                        </button>
+                                        <select v-model="chartTypes[metric]" @change="drawStatsChart(metric)" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.75rem; cursor: pointer;">
+                                            <option value="bar">Bar</option>
+                                            <option value="pie">Pie</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; position: relative; min-height: 0; width: 100%;">
+                                    <canvas :id="'statsChartCanvas_' + metric.replace(/ /g, '_')" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="statsMetrics.length === 0" class="empty-state" style="width: 100%;">
+                            <i data-lucide="bar-chart-2" class="empty-icon" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
+                            <h2 class="empty-title">No Statistics Available</h2>
+                            <p class="empty-desc">The current node data does not have numeric statistics to chart.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="nav-arrow right-arrow" @click="activeCardIndex = activeCardIndex < 3 ? activeCardIndex + 1 : 0">
+                    <i data-lucide="chevron-right" style="width: 2.5rem; height: 2.5rem;" stroke-width="3"></i>
+                </button>
+            </div>
 
         </div>
     </main>
@@ -471,10 +486,71 @@ const emit = defineEmits(['node-select', 'logout', 'toggle-theme']);
 
 const queryInput = ref('   ');
 const isLoading = ref(false);
-const treeData = ref(null);
-const selectedNode = ref(null);
-const treeRef = ref(null);
-const treeMode = ref('raw'); // 'logical' or 'raw'
+
+const activeCardIndex = ref(0);
+const cardTitles = ['Logical Tree', 'Optimized Logical Tree', 'Physical Tree', 'Statistics'];
+
+const logicalTreeData = ref(null);
+const optimizedTreeData = ref(null); // Mocked for now
+const physicalTreeData = ref(null);
+
+const activeTreeData = computed(() => {
+    if (activeCardIndex.value === 0) return logicalTreeData.value;
+    if (activeCardIndex.value === 1) return optimizedTreeData.value;
+    if (activeCardIndex.value === 2) return physicalTreeData.value;
+    return null;
+});
+
+const selectedLogicalNode = ref(null);
+const selectedOptimizedNode = ref(null);
+const selectedPhysicalNode = ref(null);
+
+const selectedNode = computed({
+    get() {
+        if (activeCardIndex.value === 0) return selectedLogicalNode.value;
+        if (activeCardIndex.value === 1) return selectedOptimizedNode.value;
+        if (activeCardIndex.value === 2) return selectedPhysicalNode.value;
+        return null;
+    },
+    set(val) {
+        if (activeCardIndex.value === 0) selectedLogicalNode.value = val;
+        else if (activeCardIndex.value === 1) selectedOptimizedNode.value = val;
+        else if (activeCardIndex.value === 2) selectedPhysicalNode.value = val;
+    }
+});
+
+const treeRefs = ref({});
+const setTreeRef = (el, index) => {
+    if (el) treeRefs.value[index] = el;
+};
+
+// Re-center tree when switching tabs to prevent decentralization bug
+watch(activeCardIndex, (newIdx) => {
+    if (newIdx < 3) {
+        nextTick(() => {
+            // Force re-selection of root if nothing is selected in this tab
+            // to prevent "stale" selection from previous tab appearing
+            if (newIdx === 0 && !selectedLogicalNode.value && logicalTreeData.value) {
+                const root = logicalTreeData.value.nodes.find(n => !logicalTreeData.value.edges.some(e => e.to === n.id));
+                if (root) selectedLogicalNode.value = root;
+            } else if (newIdx === 1 && !selectedOptimizedNode.value && optimizedTreeData.value) {
+                const root = optimizedTreeData.value.nodes.find(n => !optimizedTreeData.value.edges.some(e => e.to === n.id));
+                if (root) selectedOptimizedNode.value = root;
+            } else if (newIdx === 2 && !selectedPhysicalNode.value && physicalTreeData.value) {
+                const root = physicalTreeData.value.nodes.find(n => !physicalTreeData.value.edges.some(e => e.to === n.id));
+                if (root) selectedPhysicalNode.value = root;
+            }
+
+            const tree = treeRefs.value[newIdx];
+            if (tree && typeof tree.centerTree === 'function') {
+                tree.centerTree();
+            }
+        });
+    }
+});
+
+// legacy ref bindings for methods accessing treeRef.value.focusNode
+const treeRef = computed(() => treeRefs.value[activeCardIndex.value]);
 const expandedRow = ref(null); // Track which row is expanded for details
 const expandedSegments = ref({}); // Track which segments within a path are expanded
 const selectedPathElement = ref(null); // Track clicked element in visual path
@@ -503,7 +579,9 @@ const selectedMetric = ref('');
 let chartInstances = {};
 const chartDataRef = ref(null);
 const chartTypes = ref({});
+const sortAscending = ref({}); // per-metric sort toggle
 const aggregateNodes = ref(false);
+const overallQueryTime = ref(0); // Total query runtime (ms) set on each runQuery
 
 const getMockNodeStats = (label) => {
     if (!label) return { runtime: 0, selectivity: 0, cardinality: 0, throughput: 0 };
@@ -516,39 +594,140 @@ const getMockNodeStats = (label) => {
     return { runtime: 3, selectivity: 0.5, cardinality: 50, throughput: 16.6 };
 };
 
-const rawFakeStats = {
-    headers: ['Operator', 'Runtime (ms)', 'Selectivity', 'Cardinality', 'Throughput (paths/ms)'],
-    rows: [
-        ['Paths_1: (p1)', 5, 0.8, 100, 20],
-        ['Selection: (name="Moe")', 4, 0.4, 80, 20],
-        ['Recursive: (Knows+)', 10, 0.1, 1000, 100],
-        ['Selection: (age>30)', 3, 0.5, 300, 100],
-        ['Projection: (len()+1.txt)', 2, 0.05, 3, 1.5]
-    ]
+const getNodeStats = (node) => {
+    if (!node) return { runtime: 0, selectivity: 0, cardinality: 0, throughput: 0 };
+    
+    // Determine where the metadata is located
+    let res = node.apiResults;
+    if (res && res.type === 'join') {
+        res = res[activeJoinTab.value];
+    }
+    
+    const meta = res?.metadata;
+    const po = meta?.po;
+    const mock = getMockNodeStats(node.label);
+    
+    if (!meta) return mock;
+    
+    let runtimeVal = mock.runtime;
+    let numericTime = po?.runningTimeMS;
+    
+    if (meta?.time !== undefined) {
+        runtimeVal = meta.time;
+        // If it comes as a string with a comma, replace with dot
+        const parsedTime = parseFloat(String(meta.time).replace(',', '.'));
+        if (!isNaN(parsedTime) && parsedTime > 0) {
+            numericTime = parsedTime;
+        }
+    } else if (po?.runningTimeMS !== undefined) {
+        runtimeVal = po.runningTimeMS;
+        numericTime = po.runningTimeMS;
+    }
+
+    if (numericTime === 0 || numericTime === undefined) {
+        // Fallback to avoid division by zero
+        numericTime = 1;
+    }
+    
+    let cardinalityVal = mock.cardinality;
+    if (po?.calculatedPaths !== undefined) {
+        cardinalityVal = po.calculatedPaths;
+    } else if (meta?.totalPaths !== undefined) {
+        cardinalityVal = meta.totalPaths;
+    }
+    
+    return {
+        runtime: runtimeVal,
+        selectivity: mock.selectivity, // Backend doesn't provide selectivity in po yet
+        cardinality: cardinalityVal,
+        throughput: (cardinalityVal !== undefined && numericTime > 0) 
+            ? parseFloat((cardinalityVal / numericTime).toFixed(2)) 
+            : mock.throughput
+    };
+};
+
+const stripHtml = (html) => {
+    if (!html) return '';
+    return html.replace(/<\/?(b|i|code|sub|sup|span)[^>]*>/gi, '').trim();
+};
+
+const buildRealStatsFromTree = () => {
+    // Columns: Operator | Input (#Paths) | Cardinality (#Paths) | Selectivity | Runtime (ms) | Throughput (paths/ms)
+    const headers = ['Operator', 'Input (#Paths)', 'Cardinality (#Paths)', 'Selectivity', 'Runtime (ms)', 'Throughput (paths/ms)'];
+    const rows = [];
+
+    // Use the physical tree (every node has PO data embedded by transformPhysicalPlan)
+    const treeData = physicalTreeData.value;
+    if (!treeData || !treeData.nodes || treeData.nodes.length === 0) {
+        return { headers, rows };
+    }
+
+    // Use the overall query time stored at runQuery time (reliable, not from tree root lookup)
+    const queryTime = overallQueryTime.value;
+
+    // First pass: collect raw PO stats from each physical node
+    const rawRows = [];
+    let totalCalcPaths = 0;
+    let allRunTimeZero = true;
+
+    treeData.nodes.forEach(node => {
+        const cleanLabel = stripHtml(node.label || 'Unknown');
+        const po = node.apiResults?.metadata?.po;
+
+        let runtime = po?.runningTimeMS ?? 0;
+        // Input = all paths the operator considered (calculatedPaths)
+        // Cardinality = paths actually returned after filtering (returnedPaths)
+        let inputPaths = po?.calculatedPaths ?? 0;
+        let cardinality = po?.returnedPaths ?? 0;
+
+        if (runtime > 0) allRunTimeZero = false;
+        totalCalcPaths += inputPaths;
+
+        rawRows.push({ cleanLabel, runtime, inputPaths, cardinality });
+    });
+
+    // Second pass: distribute overall time proportionally if all runningTimeMS are 0
+    rawRows.forEach(row => {
+        let runtime = row.runtime;
+        if (allRunTimeZero && queryTime > 0 && totalCalcPaths > 0) {
+            runtime = parseFloat(((row.inputPaths / totalCalcPaths) * queryTime).toFixed(6));
+        }
+
+        const selectivity = (row.inputPaths > 0)
+            ? parseFloat((row.cardinality / row.inputPaths).toFixed(4))
+            : 0;
+
+        const throughput = (runtime > 0 && row.cardinality > 0)
+            ? parseFloat((row.cardinality / runtime).toFixed(2))
+            : 0;
+
+        // Order: Operator | Input (#Paths) | Cardinality (#Paths) | Selectivity | Runtime (ms) | Throughput
+        rows.push([
+            row.cleanLabel,
+            row.inputPaths,
+            row.cardinality,
+            selectivity,
+            runtime,
+            throughput
+        ]);
+    });
+
+    return { headers, rows };
 };
 
 const processChartData = () => {
-    let dataToUse = JSON.parse(JSON.stringify(rawFakeStats)); // deep copy
-    
-    // To use real data in the future, uncomment and replace rawFakeStats
-    /*
-    if (currentNodeData.value && currentNodeData.value.headers && currentNodeData.value.rows && currentNodeData.value.rows.length > 0) {
-        dataToUse = { headers: currentNodeData.value.headers, rows: JSON.parse(JSON.stringify(currentNodeData.value.rows)) };
-    }
-    */
+    let dataToUse = buildRealStatsFromTree();
     
     if (aggregateNodes.value) {
         const aggregated = {};
         dataToUse.rows.forEach(row => {
-            // Extract the base name (e.g., "Selection" from "Selection: (name='Moe')")
             const name = String(row[0]).includes(':') ? String(row[0]).split(':')[0].trim() : String(row[0]).split(' ')[0].trim();
             if (!aggregated[name]) {
                 aggregated[name] = [...row];
-                aggregated[name][0] = name; // Update label to base name
+                aggregated[name][0] = name;
             } else {
-                // Sum numeric columns
                 for (let i = 1; i < row.length; i++) {
-                    aggregated[name][i] += row[i];
+                    aggregated[name][i] = parseFloat((aggregated[name][i] + row[i]).toFixed(4));
                 }
             }
         });
@@ -588,7 +767,7 @@ const openStatsModal = () => {
         }
     }
     
-    showStatsModal.value = true;
+    activeCardIndex.value = 3;
     nextTick(() => {
         if (window.lucide) window.lucide.createIcons();
         if (statsMetrics.value.length > 0) {
@@ -619,11 +798,20 @@ const drawStatsChart = (metric) => {
     const data = [];
     
     dataToUse.rows.forEach((row, index) => {
-        // Fallback for unlabeled rows
         labels.push(String(row[labelIndex] || `Row ${index + 1}`));
         const val = parseFloat(row[metricIndex]);
         data.push(isNaN(val) ? 0 : val);
     });
+
+    // Sort ascending if toggle is on (for bar charts)
+    let finalLabels = labels;
+    let finalData = data;
+    if (sortAscending.value[metric]) {
+        const paired = labels.map((l, i) => ({ label: l, value: data[i] }));
+        paired.sort((a, b) => a.value - b.value);
+        finalLabels = paired.map(p => p.label);
+        finalData = paired.map(p => p.value);
+    }
     
     // Draw Delay for DOM
     nextTick(() => {
@@ -640,10 +828,10 @@ const drawStatsChart = (metric) => {
         chartInstances[metric] = new Chart(ctx, {
             type: type,
             data: {
-                labels: labels,
+                labels: finalLabels,
                 datasets: [{
                     label: metric,
-                    data: data,
+                    data: finalData,
                     backgroundColor: [
                         '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#eab308'
                     ],
@@ -840,13 +1028,27 @@ const toggleRow = (index) => {
     }
 }
 
-const handleNodeSelect = (node) => {
-    selectedNode.value = node;
+const handleNodeSelect = (node, index) => {
+    const idx = index !== undefined ? index : activeCardIndex.value;
+    if (idx === 0) selectedLogicalNode.value = node;
+    else if (idx === 1) selectedOptimizedNode.value = node;
+    else if (idx === 2) selectedPhysicalNode.value = node;
+    
     expandedRow.value = null; // Reset expansion on new selection
     selectedTablePath.value = null; // Reset path sequence view
     
+    console.log(`[Node Select] id: ${node?.id}, label: ${node?.label}, idx: ${idx}`);
+    
     // Safety check: node can be null if clicking background
     if (!node) return;
+
+    if (idx === 2) {
+        // Physical Tree: Data is already attached, no sub-queries needed. Just focus.
+        if (treeRef.value && typeof treeRef.value.focusNode === 'function') {
+            treeRef.value.focusNode(node.id);
+        }
+        return;
+    }
 
     // Focus and center the node in the tree visually
     if (treeRef.value && typeof treeRef.value.focusNode === 'function') {
@@ -864,7 +1066,10 @@ const handleNodeSelect = (node) => {
     });
 
     const label = node.label || "";
-    const isRootNode = treeData.value && !treeData.value.edges.some(e => e.to === node.id);
+    let isRootNode = false;
+    if (idx === 0 && logicalTreeData.value) isRootNode = !logicalTreeData.value.edges.some(e => e.to === node.id);
+    else if (idx === 1 && optimizedTreeData.value) isRootNode = !optimizedTreeData.value.edges.some(e => e.to === node.id);
+    else if (idx === 2 && physicalTreeData.value) isRootNode = !physicalTreeData.value.edges.some(e => e.to === node.id);
     
     // Check for specialized operator nodes
     if (isRootNode && queryInput.value) {
@@ -897,18 +1102,22 @@ const handleNodeSelect = (node) => {
  * Performs specialized enrichment for complex operators
  */
 const performOperatorEnrichment = async (node, operatorType, targetTab = 'join') => {
-    // Cache Check: If data for this tab already exists, just switch tab (if applicable) and return
+    // Cache Check: If full data for this tab already exists, just switch tab (if applicable) and return
+    // Note: PO auto-enrichment only sets metadata.po — it does NOT set .data or join tabs,
+    // so we must NOT treat it as "already loaded".
     if (node.apiResults) {
-        if (operatorType === 'join' && node.apiResults[targetTab]) {
+        if (operatorType === 'join' && node.apiResults.type === 'join' && node.apiResults[targetTab]) {
             activeJoinTab.value = targetTab;
             return;
-        } else if (operatorType !== 'join' && node.apiResults.success) {
-            return; // Already loaded standard results
+        } else if (operatorType !== 'join' && node.apiResults.success && node.apiResults.data) {
+            return; // Already loaded full results with data
         }
     }
 
-    // Initialize apiResults structure if new
-    if (!node.apiResults) {
+    // Initialize apiResults structure. Always reset for join operators since PO
+    // auto-enrichment may have pre-set an incompatible structure (no join/left/right tabs).
+    const needsInit = !node.apiResults || (operatorType === 'join' && node.apiResults.type !== 'join');
+    if (needsInit) {
         node.apiResults = { 
             type: operatorType, 
             success: true, 
@@ -934,9 +1143,9 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
 
         if (operatorType === 'join') {
             // Identify Children
-            const children = treeData.value.edges
+            const children = activeTreeData.value.edges
                 .filter(e => e.from === node.id)
-                .map(e => treeData.value.nodes.find(n => n.id === e.to))
+                .map(e => activeTreeData.value.nodes.find(n => n.id === e.to))
                 .filter(n => n);
             
             // Sort by ID to ensure consistent Left/Right assignment (heuristic)
@@ -1036,6 +1245,7 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
 
                  return {
                      data: formatDataForTable(joinedPaths),
+                     metadata: res.metadata,
                      success: true
                  };
             };
@@ -1044,100 +1254,72 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
             node.apiResults[targetTab] = processResult(result);
             activeJoinTab.value = targetTab;
             
-            // Force Vue reactivity for the currently selected node
+            // Force Vue reactivity — full object replacement to ensure nested change detection
             if (selectedNode.value && selectedNode.value.id === node.id) {
-                selectedNode.value = { ...selectedNode.value, apiResults: node.apiResults };
+                selectedNode.value = { ...selectedNode.value, apiResults: JSON.parse(JSON.stringify(node.apiResults)) };
             }
 
         } else if (operatorType === 'union') {
-             console.log(`[UNION Node] Processing union for:`, node.label);
-             const children = treeData.value.edges
-                 .filter(e => e.from === node.id)
-                 .map(e => treeData.value.nodes.find(nod => nod.id === e.to))
-                 .filter(n => n)
-                 .sort((a,b) => String(a.id || "").localeCompare(String(b.id || "")));
-             
-             // Ensure children are evaluated before unioning
-             for (const child of children) {
-                 if (!child.apiResults) {
-                     const label = child.label || "";
-                     // Temporarily release the loading lock so child queries can run sequentially
-                     isLoading.value = false;
-                     try {
-                         if (label.includes("⋈")) await performOperatorEnrichment(child, 'join');
-                         else if (label.includes("∪")) await performOperatorEnrichment(child, 'union');
-                         else if (label.includes("Φ")) await performOperatorEnrichment(child, 'recursive');
-                         else if (label.includes("Paths₁") || label.includes("Paths₀")) {
-                             const filters = collectSubtreeFilters(child.id);
-                             await performSearch(child, filters);
-                         } else if (label.includes("σ")) {
-                             if (label.includes("label(")) {
-                                 const filters = collectSubtreeFilters(child.id);
-                                 await performSearch(child, filters);
-                             } else {
-                                 await performOperatorEnrichment(child, 'selection');
-                             }
-                         }
-                     } finally {
-                         // Restore the loading lock for the parent
-                         isLoading.value = true;
-                     }
-                 }
-             }
-             
-             let headers = null;
-             let pathCounter = 1;
-             
-             const extractPaths = (childNode) => {
-                 if (!childNode || !childNode.apiResults || !childNode.apiResults.success) return [];
-                 let d = [];
-                 if (childNode.apiResults.type === 'join' && childNode.apiResults.join && childNode.apiResults.join.success && childNode.apiResults.join.data) {
-                     d = childNode.apiResults.join.data;
-                 } else if (childNode.apiResults.data) {
-                     d = childNode.apiResults.data;
-                 }
-                 if (!d || d.length === 0) return [];
-                 
-                 if (!headers && d[0] && d[0].content && Array.isArray(d[0].content)) {
-                     headers = d[0].content;
-                 }
-                 return d.slice(1);
-             };
+             console.log(`[UNION Node] Executing backend query for union:`, node.label);
+             const query = generateSubtreeQuery(node, 'union');
+             if (!query) return;
 
-             const leftPaths = children.length > 0 ? extractPaths(children[0]) : [];
-             const rightPaths = children.length > 1 ? extractPaths(children[1]) : [];
-             
-             // Merge and reassign Path IDs if it represents paths (first column "Path ID")
-             const allPaths = [...leftPaths, ...rightPaths].map((row) => {
-                 let newRow = { ...row };
-                 if (newRow.content && Array.isArray(newRow.content) && newRow.content.length > 0) {
-                     // Check if first column is likely a Path ID
-                     if (typeof newRow.content[0] === 'string' && newRow.content[0].startsWith('P')) {
-                         let contentCopy = [...newRow.content];
-                         contentCopy[0] = `P${pathCounter++}`;
-                         newRow.content = contentCopy;
-                     }
+             console.log(`[UNION Node] Query:`, query);
+             const result = await api.executeQuery(query, loginToken, sessionToken);
+
+             if (result.success && result.data) {
+                 let paths = [];
+                 let rawData = result.data;
+                 const first = rawData[0];
+                 let isHeader = false;
+                 const getFirstContent = (item) => {
+                     if (item && item.content && Array.isArray(item.content)) return item.content[0];
+                     if (Array.isArray(item)) return item[0];
+                     return item;
+                 };
+                 const firstVal = getFirstContent(first);
+                 if (typeof firstVal === 'string' && (firstVal === 'p' || firstVal.toLowerCase() === 'path' || firstVal.includes('ID Camino'))) {
+                     isHeader = true;
                  }
-                 return newRow;
-             });
-             
-             const restrictorMatch = node.label.match(/(?:∪|<b>∪<\/b>)\s+(?:<b>|<code>)?(TRAIL|SIMPLE|ACYCLIC|WALK)(?:<\/b>|<\/code>)?/i);
-             const restrictor = restrictorMatch ? restrictorMatch[1].toUpperCase() : "WALK";
-             
-             let finalData = [];
-             if (headers) {
-                 finalData = [{ content: headers }, ...allPaths];
-             }
-             
-             node.apiResults = {
-                 type: 'standard',
-                 success: true,
-                 insight: `Unioned results of ${children.length} child nodes locally. Semantics: ${restrictor}.`,
-                 data: finalData
-             };
-             
-             if (selectedNode.value && selectedNode.value.id === node.id) {
-                 selectedNode.value = { ...selectedNode.value, apiResults: node.apiResults };
+                 if (isHeader) rawData = rawData.slice(1);
+                 paths = rawData.map(item => getFirstContent(item));
+
+                 const joinedPaths = paths.map((pathItem, index) => {
+                     let segments = [];
+                     let rawStr = "";
+                     let parsedObj = null;
+                     const mapSeg = (item) => {
+                         if (item.source || item.target || item.dir) {
+                             return { type: 'edge', label: item.label, id: item.id, direction: item.dir === 'T' || item.dir === true ? '->' : '<-', properties: item };
+                         }
+                         return { type: 'node', label: item.label, id: item.id, properties: item };
+                     };
+                     try {
+                         if (typeof pathItem === 'object' && pathItem !== null) {
+                             parsedObj = pathItem;
+                         } else {
+                             rawStr = String(pathItem);
+                             if (rawStr.trim().startsWith('{') || rawStr.trim().startsWith('[')) parsedObj = JSON.parse(rawStr);
+                         }
+                         if (parsedObj) {
+                             const rawSegments = parsedObj.content || parsedObj.segments;
+                             if (Array.isArray(rawSegments)) segments = rawSegments.map(mapSeg);
+                         }
+                         if (segments.length === 0 && rawStr) segments = parsePathString(rawStr);
+                     } catch (e) { if (rawStr) segments = parsePathString(rawStr); }
+                     return { "Path ID": `P${index + 1}`, segments };
+                 });
+
+                 node.apiResults = {
+                     type: 'standard',
+                     success: true,
+                     data: formatDataForTable(joinedPaths),
+                     metadata: result.metadata
+                 };
+
+                 if (selectedNode.value && selectedNode.value.id === node.id) {
+                     selectedNode.value = { ...selectedNode.value, apiResults: JSON.parse(JSON.stringify(node.apiResults)) };
+                 }
              }
 
         } else if (operatorType === 'recursive' || operatorType === 'selection' || operatorType === 'root') {
@@ -1203,7 +1385,8 @@ const performOperatorEnrichment = async (node, operatorType, targetTab = 'join')
                        type: 'standard',
                        success: true,
                        insight: `Executed Sub-Query for ${operatorType}. Semantics: ${restrictor}.`,
-                       data: formatDataForTable(joinedPaths)
+                       data: formatDataForTable(joinedPaths),
+                       metadata: result.metadata
                    };
                    
                    // Force Vue reactivity
@@ -1279,9 +1462,9 @@ const generateSubtreeQuery = (node, type) => {
         
         // JOIN
         if (label.includes("⋈")) {
-             const children = treeData.value.edges
+             const children = activeTreeData.value.edges
                 .filter(e => e.from === n.id)
-                .map(e => treeData.value.nodes.find(nod => nod.id === e.to))
+                .map(e => activeTreeData.value.nodes.find(nod => nod.id === e.to))
                 .filter(nod => nod)
                 .sort((a,b) => String(a.id).localeCompare(String(b.id)));
              
@@ -1293,9 +1476,9 @@ const generateSubtreeQuery = (node, type) => {
         
         // UNION
         if (label.includes("∪")) {
-             const children = treeData.value.edges
+             const children = activeTreeData.value.edges
                 .filter(e => e.from === n.id)
-                .map(e => treeData.value.nodes.find(nod => nod.id === e.to))
+                .map(e => activeTreeData.value.nodes.find(nod => nod.id === e.to))
                 .filter(nod => nod)
                 .sort((a,b) => String(a.id).localeCompare(String(b.id)));
              
@@ -1333,9 +1516,9 @@ const generateSubtreeQuery = (node, type) => {
              }
 
              // Otherwise, it represents a property filter (WHERE), so return the underlying path structure
-             const children = treeData.value.edges
+             const children = activeTreeData.value.edges
                 .filter(e => e.from === n.id)
-                .map(e => treeData.value.nodes.find(nod => nod.id === e.to));
+                .map(e => activeTreeData.value.nodes.find(nod => nod.id === e.to));
              
              if (children.length > 0) {
                  // Verify if we need parens for safety? usually direct child
@@ -1348,9 +1531,9 @@ const generateSubtreeQuery = (node, type) => {
         if (label.includes("Φ")) {
              let kleene = "+"; // Always use + for subqueries per user requirement
              
-             const children = treeData.value.edges
+             const children = activeTreeData.value.edges
                 .filter(e => e.from === n.id)
-                .map(e => treeData.value.nodes.find(nod => nod.id === e.to));
+                .map(e => activeTreeData.value.nodes.find(nod => nod.id === e.to));
              
              if (children.length > 0) {
                  const body = stripRedundantParens(buildPattern(children[0]));
@@ -1407,8 +1590,8 @@ const generateChildQuery = (childNode, parentRestrictor = "WALK") => {
         const labelMatch = n.label.match(/label\((?:node|edge)\(\d+\)\)\s*=\s*(\w+)/);
         if (labelMatch) labels.push(labelMatch[1]);
         
-        const childEdges = treeData.value.edges.filter(e => e.from === n.id);
-        childEdges.forEach(ce => traverse(treeData.value.nodes.find(cn => cn.id === ce.to)));
+        const childEdges = activeTreeData.value.edges.filter(e => e.from === n.id);
+        childEdges.forEach(ce => traverse(activeTreeData.value.nodes.find(cn => cn.id === ce.to)));
     }
     traverse(childNode);
     
@@ -1594,10 +1777,10 @@ const formatDataForTable = (parsedItems) => {
  */
 const collectSubtreeFilters = (nodeId) => {
     const filters = { type: 'edge', label: null, properties: {} };
-    if (!treeData.value) return filters;
+    if (!activeTreeData.value) return filters;
     
-    const nodes = treeData.value.nodes;
-    const edges = treeData.value.edges;
+    const nodes = activeTreeData.value.nodes;
+    const edges = activeTreeData.value.edges;
     
     const traverse = (currentId) => {
         const node = nodes.find(n => n.id === currentId);
@@ -1631,7 +1814,8 @@ const collectSubtreeFilters = (nodeId) => {
 }
 
 const performSearch = async (node, filters) => {
-    if (node.apiResults || isLoading.value) return;
+    // Skip only if fully loaded with data (not just PO auto-enrichment metadata)
+    if ((node.apiResults && node.apiResults.data) || isLoading.value) return;
 
     console.log(`[SEARCH Node] Executing search with filters:`, filters);
     isLoading.value = true;
@@ -1690,14 +1874,24 @@ const performSearch = async (node, filters) => {
 
                 node.apiResults = {
                     success: true,
-                    data: formatted
+                    data: formatted,
+                    metadata: result.metadata
                 };
+                
+                // Force Vue reactivity
+                if (selectedNode.value && selectedNode.value.id === node.id) {
+                    selectedNode.value = { ...selectedNode.value, apiResults: node.apiResults };
+                }
             } else {
                 node.apiResults = {
                     success: true,
                     message: "No results found",
                     data: []
                 };
+                // Force Vue reactivity
+                if (selectedNode.value && selectedNode.value.id === node.id) {
+                    selectedNode.value = { ...selectedNode.value, apiResults: node.apiResults };
+                }
             }
         }
     } catch (e) {
@@ -1884,9 +2078,9 @@ const selectedNodeParams = computed(() => {
     const params = [];
 
     // Find children
-    const children = treeData.value.edges
+    const children = activeTreeData.value.edges
         .filter(e => e.from === selectedNode.value.id)
-        .map(e => treeData.value.nodes.find(n => n.id === e.to))
+        .map(e => activeTreeData.value.nodes.find(n => n.id === e.to))
         .filter(n => n)
         .sort((a,b) => String(a.id || "").localeCompare(String(b.id || "")));
 
@@ -2234,57 +2428,95 @@ const runQuery = async () => {
     if (!queryInput.value.trim()) return;
 
     isLoading.value = true;
-    selectedNode.value = null; 
-    treeData.value = { nodes: [], edges: [] }; // Explicitly clear old nodes to avoid them getting stuck
+    selectedLogicalNode.value = null; 
+    selectedOptimizedNode.value = null; 
+    selectedPhysicalNode.value = null;
+    logicalTreeData.value = { nodes: [], edges: [] }; 
+    optimizedTreeData.value = { nodes: [], edges: [] }; 
+    physicalTreeData.value = { nodes: [], edges: [] }; 
     
     try {
         const { loginToken, sessionToken } = props.session;
 
         // 1. Fetch live results
-     
         const queryResults = await api.executeQuery(queryInput.value, loginToken, sessionToken);
 
-        // 2. Fetch logical or raw plan tree based on mode
-        let plan;
-        if (treeMode.value === 'logical') {
-            plan = await api.getQueryTree(queryInput.value, loginToken, sessionToken);
-            console.log("LOGICAL PLAN FROM API:", JSON.stringify(plan, null, 2));
-        } else {
-            plan = await api.getRawQueryTree(queryInput.value, loginToken, sessionToken);
+        // 2. Fetch both plans
+        const logicalPlan = await api.getQueryTree(queryInput.value, loginToken, sessionToken);
+        let rawPlan = null;
+        try {
+            rawPlan = await api.getRawQueryTree(queryInput.value, loginToken, sessionToken);
+        } catch (e) {
+            console.warn("Failed to fetch raw plan", e);
         }
 
-        // 3. Transform plan to Tree format
-        const transformedTree = transformLogicalPlan(plan, queryInput.value);
+        // 3. Transform plans
+        const transformedLogical = transformLogicalPlan(logicalPlan, queryInput.value);
+        let transformedPhysical = { nodes: [], edges: [] };
         
-        // Attach results to the true root of the tree (the one with no incoming edges)
-        const rootNode = transformedTree.nodes.find(node => 
-            !transformedTree.edges.some(edge => edge.to === node.id)
-        );
+        if (queryResults && queryResults.metadata && queryResults.metadata.po) {
+            transformedPhysical = transformPhysicalPlan(queryResults.metadata.po);
+        } else if (rawPlan) {
+            transformedPhysical = transformLogicalPlan(rawPlan, queryInput.value);
+        }
+        
+        const attachResultsToRoot = (tree, isPhysical) => {
+            if (!tree || !tree.nodes) return null;
+            const rootNode = tree.nodes.find(node => !tree.edges.some(edge => edge.to === node.id));
+            if (rootNode) {
+                const enriched = safelyEnrichQueryResults(queryResults);
+                if (isPhysical) {
+                    rootNode.apiResults = {
+                        ...rootNode.apiResults,
+                        data: enriched.data
+                    };
+                } else {
+                    rootNode.apiResults = enriched;
+                }
+            }
+            return rootNode;
+        };
 
-        if (rootNode) {
-            rootNode.apiResults = safelyEnrichQueryResults(queryResults);
+        const logicalRoot = attachResultsToRoot(transformedLogical, false);
+        const physicalRoot = attachResultsToRoot(transformedPhysical, true);
+
+        // Store overall query time for statistics (reliable single source of truth)
+        if (queryResults?.metadata?.time !== undefined) {
+            const t = parseFloat(String(queryResults.metadata.time).replace(',', '.'));
+            overallQueryTime.value = isNaN(t) ? 0 : t;
+        } else {
+            overallQueryTime.value = 0;
         }
 
-        treeData.value = transformedTree;
+        // 4. Auto-enrich logical tree nodes from metadata.po
+        if (queryResults && queryResults.metadata && queryResults.metadata.po) {
+            enrichLogicalTreeFromPO(transformedLogical, queryResults.metadata.po);
+        }
+
+        logicalTreeData.value = transformedLogical;
+        physicalTreeData.value = transformedPhysical;
+        
+        // Mock optimized tree for now (Duplicate Logical)
+        optimizedTreeData.value = JSON.parse(JSON.stringify(transformedLogical));
+        const optimizedRoot = attachResultsToRoot(optimizedTreeData.value, false);
 
         nextTick(() => {
             if (window.lucide) window.lucide.createIcons();
             
-            // Automatically select the root node after rendering the tree
-            if (rootNode) {
-                // Add a small delay to ensure Vis.js has rendered the nodes before focusing
-                setTimeout(() => {
-                    handleNodeSelect(rootNode);
-                }, 100);
-            }
+            setTimeout(() => {
+                if (logicalRoot) selectedLogicalNode.value = logicalRoot;
+                if (optimizedRoot) selectedOptimizedNode.value = optimizedRoot;
+                if (physicalRoot) selectedPhysicalNode.value = physicalRoot;
+                
+                if (activeCardIndex.value === 0 && logicalRoot) handleNodeSelect(logicalRoot, 0);
+                else if (activeCardIndex.value === 1 && optimizedRoot) handleNodeSelect(optimizedRoot, 1);
+                else if (activeCardIndex.value === 2 && physicalRoot) handleNodeSelect(physicalRoot, 2);
+            }, 100);
         });
     } catch (e) {
-
-        // Fallback or show error
-        treeData.value = { 
-            nodes: [{ id: 1, label: "Error", color: { background: '#ffffff' }, properties: { Error: e.message } }], 
-            edges: [] 
-        };
+        logicalTreeData.value = { nodes: [{ id: 1, label: "Error", color: { background: '#ffffff' }, properties: { Error: e.message } }], edges: [] };
+        physicalTreeData.value = { nodes: [{ id: 1, label: "Error", color: { background: '#ffffff' }, properties: { Error: e.message } }], edges: [] };
+        optimizedTreeData.value = { nodes: [{ id: 1, label: "Error", color: { background: '#ffffff' }, properties: { Error: e.message } }], edges: [] };
     } finally {
         isLoading.value = false;
     }
@@ -2628,6 +2860,142 @@ const transformLogicalPlan = (plan, query = "") => {
     }
 
     return { nodes, edges };
+};
+
+const transformPhysicalPlan = (poNode) => {
+    const nodes = [];
+    const edges = [];
+    let idCounter = 1;
+
+    const traverse = (node, parentId = null) => {
+        if (!node) return null;
+        const id = idCounter++;
+        
+        let label = node.typeStatistics || "Unknown";
+        let formattedLabel = label;
+        if (label.includes('Join')) {
+            formattedLabel = `<b>⋈</b> <i>${label}</i>`;
+        } else if (label.includes('Selection')) {
+            formattedLabel = `<b>σ</b> <i>${label}</i>`;
+        } else if (label.includes('Scan') || label.includes('Paths')) {
+            formattedLabel = `<b>Scan</b> <i>${label}</i>`;
+        } else if (label.includes('Projection')) {
+            formattedLabel = `<b>π</b> <i>${label}</i>`;
+        } else {
+            formattedLabel = `<b>${label}</b>`;
+        }
+
+        const properties = { Type: label };
+        if (node.runningTimeMS !== undefined) properties.RunningTimeMS = node.runningTimeMS;
+        if (node.calculatedPaths !== undefined) properties.CalculatedPaths = node.calculatedPaths;
+        if (node.returnedPaths !== undefined) properties.ReturnedPaths = node.returnedPaths;
+
+        nodes.push({ 
+            id, 
+            label: formattedLabel, 
+            color: { background: "#ffffff" }, 
+            apiResults: {
+                success: true,
+                metadata: { po: node }
+            },
+            properties
+        });
+
+        if (parentId !== null) {
+            edges.push({ from: parentId, to: id });
+        }
+
+        if (node.child) traverse(node.child, id);
+        if (node.leftChild) traverse(node.leftChild, id);
+        if (node.rightChild) traverse(node.rightChild, id);
+
+        return id;
+    };
+
+    traverse(poNode);
+    return { nodes, edges };
+};
+
+/**
+ * Auto-enrich logical tree nodes with stats from metadata.po.
+ * Flattens the PO tree and maps each physical operator to a logical node
+ * based on operator type, consuming matches so duplicates map correctly.
+ */
+const enrichLogicalTreeFromPO = (logicalTree, poRoot) => {
+    if (!logicalTree || !logicalTree.nodes || !poRoot) return;
+
+    // 1. Flatten PO tree into an array
+    const flatPO = [];
+    const flattenPO = (node) => {
+        if (!node) return;
+        flatPO.push(node);
+        if (node.child) flattenPO(node.child);
+        if (node.leftChild) flattenPO(node.leftChild);
+        if (node.rightChild) flattenPO(node.rightChild);
+    };
+    flattenPO(poRoot);
+
+    // 2. Classify each logical node to a PO type
+    const getLogicalType = (node) => {
+        const label = (node.label || '').toLowerCase();
+        const name = (node.properties?.Name || '').toLowerCase();
+        
+        if (label.includes('paths') || name.includes('allnodes') || name.includes('allpaths')) return 'scan';
+        if (label.includes('σ') || name.includes('selection')) {
+            if (label.includes('label') || label.includes('edge')) return 'selectionByLabel';
+            return 'selection';
+        }
+        if (label.includes('⋈') || label.includes('trail') || name.includes('join') || name.includes('trail')) return 'join';
+        if (label.includes('∪') || name.includes('union')) return 'union';
+        if (label.includes('φ') || name.includes('recursive') || name.includes('kleene')) return 'recursive';
+        if (label.includes('π') || name.includes('projection')) return 'projection';
+        return 'unknown';
+    };
+
+    // 3. Map PO type strings to logical types
+    const getPOLogicalType = (poNode) => {
+        const type = (poNode.typeStatistics || '').toLowerCase();
+        if (type.includes('selectionbylabel') || type.includes('selection')) return 'selectionByLabel';
+        if (type.includes('scan') || type.includes('paths')) return 'scan';
+        if (type.includes('join')) return 'join';
+        if (type.includes('union')) return 'union';
+        if (type.includes('recursive') || type.includes('kleene')) return 'recursive';
+        if (type.includes('projection')) return 'projection';
+        return 'unknown';
+    };
+
+    // 4. Mark PO nodes as consumed to avoid double-mapping
+    const consumed = new Set();
+
+    // 5. For each logical node, find its best matching PO node
+    logicalTree.nodes.forEach(logicalNode => {
+        // Skip if already enriched (e.g., root node)
+        if (logicalNode.apiResults && logicalNode.apiResults.metadata && logicalNode.apiResults.metadata.po) return;
+
+        const logicalType = getLogicalType(logicalNode);
+        if (logicalType === 'projection' || logicalType === 'unknown') return; // Projection is frontend-only
+
+        // Find the first unconsumed PO node that matches type
+        const matchIdx = flatPO.findIndex((po, idx) => {
+            if (consumed.has(idx)) return false;
+            return getPOLogicalType(po) === logicalType;
+        });
+
+        if (matchIdx !== -1) {
+            consumed.add(matchIdx);
+            const po = flatPO[matchIdx];
+            logicalNode.apiResults = {
+                ...(logicalNode.apiResults || {}),
+                success: true,
+                metadata: {
+                    ...(logicalNode.apiResults?.metadata || {}),
+                    po: po,
+                    time: po.runningTimeMS,
+                    totalPaths: po.calculatedPaths
+                }
+            };
+        }
+    });
 };
 
 
@@ -4922,12 +5290,13 @@ onMounted(() => {
 }
 
 .info-label {
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-primary);
 }
 
 .info-value {
-    color: var(--text-secondary);
+    font-weight: 700;
+    color: var(--text-primary);
 }
 
 .param-node-btn {
@@ -4956,5 +5325,141 @@ onMounted(() => {
 .param-node-btn:active {
     transform: scale(0.97);
     box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3);
+}
+/* Carousel Styling */
+.carousel-view {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 2rem;
+    height: 100vh;
+}
+
+.carousel-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    width: 95%;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.nav-arrow {
+    background-color: #3b82f6;
+    border: none;
+    color: white;
+    border-radius: 12px;
+    width: 3.5rem;
+    height: 4.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.nav-arrow:hover {
+    background-color: #2563eb;
+    color: #ffffff;
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+}
+
+.tree-card-content {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    height: calc(100vh - 120px);
+    overflow: hidden;
+    background-color: var(--bg-primary); /* Sincronizado */
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.tree-wrapper.mini-canvas {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--bg-primary);
+}
+
+.card-details-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 2rem;
+    background-color: var(--bg-primary); /* Mismo fondo */
+    border-left: 1px solid var(--border-color); /* Delimiter */
+}
+
+.card-title-container {
+    text-align: center;
+    margin-bottom: 2rem;
+    margin-top: 0.5rem;
+}
+
+.carousel-card-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: -0.025em;
+}
+
+.carousel-card {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    animation: fadeIn 0.4s ease-out;
+}
+
+.card-title-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-title-text {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.placeholder-badge {
+    background-color: #f59e0b;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 8px;
+    text-transform: uppercase;
+}
+
+.details-panel-inner {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-primary);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    flex: 1;
+}
+
+.details-panel-inner .details-header {
+    background-color: var(--bg-secondary);
+    border-radius: 12px 12px 0 0;
 }
 </style>

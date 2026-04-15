@@ -1,11 +1,11 @@
 <template>
   <div class="tree-container">
-    <div id="query-tree-network" class="network-canvas"></div>
+    <div ref="networkContainer" class="network-canvas"></div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue';
+import { onMounted, watch, ref } from 'vue';
 
 const props = defineProps({
   treeData: {
@@ -15,6 +15,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['node-select']);
+const networkContainer = ref(null);
 
 let network = null;
 
@@ -28,7 +29,8 @@ const renderTree = () => {
         return;
     }
 
-    const container = document.getElementById('query-tree-network');
+    const container = networkContainer.value;
+    if (!container) return;
     const data = {
         nodes: new vis.DataSet(props.treeData.nodes),
         edges: new vis.DataSet(props.treeData.edges)
@@ -118,10 +120,10 @@ watch(() => props.treeData, () => {
 });
 
 const downloadImage = () => {
-    if (!network) return;
+    if (!network || !networkContainer.value) return;
     
     // Get the canvas element from vis-network
-    const canvas = document.querySelector('#query-tree-network canvas');
+    const canvas = networkContainer.value.querySelector('canvas');
     if (!canvas) return;
     
     // Create a temporary link to download
@@ -148,9 +150,22 @@ const focusNode = (nodeId) => {
     });
 };
 
+const centerTree = () => {
+    if (network) {
+        network.redraw(); // Fixes container size if it was hidden
+        network.fit({
+            animation: {
+                duration: 500,
+                easingFunction: 'easeInOutQuad'
+            }
+        });
+    }
+};
+
 defineExpose({
     downloadImage,
-    focusNode
+    focusNode,
+    centerTree
 });
 
 onMounted(() => {
@@ -164,12 +179,18 @@ onMounted(() => {
     position: relative;
     width: 100%;
     height: 100%;
+    padding: 1.5rem; /* Space around the canvas */
 }
 
 .network-canvas {
     width: 100%;
     height: 100%;
     outline: none;
-    background-color: var(--bg-primary);
+    background-color: var(--bg-primary, #ffffff);
+    /* Extremely subtle frame for seamless integration */
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    box-shadow: none;
+    overflow: hidden;
 }
 </style>

@@ -63,6 +63,7 @@ export const api = {
         }
 
         if (!result.success) throw new Error(result.message || 'Query execution failed');
+        console.log('Query Response:', result);
         return result;
     },
 
@@ -114,6 +115,7 @@ export const api = {
         });
         const result = await response.json();
         if (!result.success) throw new Error(result.message || 'Search failed');
+        console.log('Search Response:', result);
         return result;
     }
 };
