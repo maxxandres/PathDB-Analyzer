@@ -43,10 +43,7 @@
                         <i data-lucide="image" class="icon-tiny"></i>
                         Graph
                     </button>
-                    <button class="presets-action-btn" @click="openStatsModal" style="margin-left: 0.5rem;" title="View Statistics Summary">
-                        <i data-lucide="bar-chart-2" class="icon-tiny"></i>
-                        Statistics
-                    </button>
+
                 </div>
             </div>
             <div class="header-actions">
@@ -88,42 +85,54 @@
                         </button>
                     </div>
                     <div class="sequence-modal-body" style="flex: 1; display: flex; justify-content: center; align-items: center; overflow: auto; padding: 1rem; background-color: var(--bg-secondary);">
-                        <img src="../assets/graph.png" alt="Default Graph" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        <img src="../assets/graph.png" alt="Default Graph" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
                     </div>
                 </div>
             </div>
 
         
-        <div class="content-area carousel-view" :class="`pos-${panelPosition}`">
+        <div class="content-area sheet-view" :class="`pos-${panelPosition}`">
             <div v-if="!logicalTreeData" class="empty-state">
                 <div class="empty-icon-wrapper">
                     <i data-lucide="tree-deciduous" class="empty-icon"></i>
                 </div>
                 <h2 class="empty-title">No Query Executed</h2>
                 <p class="empty-desc">
-                    Write a query and run it to see the Query Analysis Carousel.
+                    Write a query and run it to see the Query Analysis view.
                 </p>
             </div>
 
-            <div v-else class="carousel-container" :style="activeCardIndex === 3 ? 'max-width: 98vw; width: 98vw;' : ''">
-                <button class="nav-arrow left-arrow" @click="activeCardIndex = activeCardIndex > 0 ? activeCardIndex - 1 : 3">
-                    <i data-lucide="chevron-left" style="width: 2.5rem; height: 2.5rem;" stroke-width="3"></i>
-                </button>
+            <div v-else class="sheet-container">
 
-                <div class="carousel-card" :style="activeCardIndex === 3 ? 'max-width: 98vw;' : ''">
-                    <div v-show="activeCardIndex === 3" class="card-title-bar">
-                        <i data-lucide="bar-chart-2" class="icon-small"></i>
-                        <h2 class="card-title-text">{{ cardTitles[activeCardIndex] }}</h2>
+                    <div v-show="activeCardIndex === 4" class="card-title-bar" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="bar-chart-2" class="icon-small"></i>
+                            <h2 class="card-title-text">{{ cardTitles[activeCardIndex] }}</h2>
+                        </div>
+                        <button @click="showStatsTable = !showStatsTable; nextTick(() => reDrawCharts())" 
+                                class="action-btn-premium" 
+                                style="font-size: 0.75rem; padding: 0.4rem 1rem;"
+                                :title="showStatsTable ? 'Hide Table' : 'Show Table'">
+                            <i :data-lucide="showStatsTable ? 'layout-sidebar' : 'table'" class="icon-xtiny"></i>
+                            {{ showStatsTable ? 'Maximized Charts' : 'Show Data Table' }}
+                        </button>
                     </div>
 
                     <div v-show="activeCardIndex < 3" class="tree-card-content">
-                        <!-- Mini Canvas Area -->
-                        <div class="tree-wrapper mini-canvas">
-                            <QueryTree v-show="activeCardIndex === 0" :ref="el => setTreeRef(el, 0)" :treeData="logicalTreeData" @node-select="n => handleNodeSelect(n, 0)" />
-                            <QueryTree v-show="activeCardIndex === 1" :ref="el => setTreeRef(el, 1)" :treeData="optimizedTreeData" @node-select="n => handleNodeSelect(n, 1)" />
-                            <QueryTree v-show="activeCardIndex === 2" :ref="el => setTreeRef(el, 2)" :treeData="physicalTreeData" @node-select="n => handleNodeSelect(n, 2)" />
-                            
-                            <!-- Sequence Detail Modal (Now in Canvas side) -->
+                        <!-- Left: Main Tree Column (Active for 0, 1, 2) -->
+                        <div class="comparison-column" :style="{ flex: activeCardIndex === 2 ? '1' : '1.2' }">
+                            <div class="column-header" v-if="activeCardIndex < 3">
+                                <i :data-lucide="activeCardIndex === 0 ? 'git-commit' : (activeCardIndex === 1 ? 'zap' : 'layers')" class="icon-xtiny"></i>
+                                {{ cardTitles[activeCardIndex] }}
+                            </div>
+
+                            <!-- Mini Canvas Area -->
+                            <div class="tree-wrapper mini-canvas">
+                                <QueryTree v-show="activeCardIndex === 0" :ref="el => setTreeRef(el, 0)" :treeData="logicalTreeData" @node-select="n => handleNodeSelect(n, 0)" />
+                                <QueryTree v-show="activeCardIndex === 1" :ref="el => setTreeRef(el, 1)" :treeData="optimizedTreeData" @node-select="n => handleNodeSelect(n, 1)" />
+                                <QueryTree v-show="activeCardIndex === 2" :ref="el => setTreeRef(el, 2)" :treeData="physicalTreeData" @node-select="n => handleNodeSelect(n, 2)" />
+                                
+                                <!-- Sequence Detail Modal (Now in Canvas side) -->
                     <div v-if="isSequenceModalOpen" class="sequence-modal-overlay" @click.self="closeSequenceModal">
                         <div class="sequence-modal-content">
                             <div class="sequence-modal-header">
@@ -191,20 +200,22 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                        <!-- Object Viewer & Title inside Card -->
-                        <div class="card-details-wrapper">
-                            <!-- Standardized Title -->
-                            <div class="card-title-container">
-                                <h1 class="carousel-card-title">{{ cardTitles[activeCardIndex] }}</h1>
+                                </div>
                             </div>
-                            <div v-show="selectedNode"
-              class="details-panel-static" 
-              style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); width: 85%; max-width: 650px; margin: 0 auto; display: flex; flex-direction: column;"
-            >
-                 <h3 style="margin-top: 0; margin-bottom: 1.2rem; color: var(--text-primary, #333); font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Object Viewer</h3>
-                 <div v-if="selectedNode" class="details-content">
+
+                        <!-- Splitter (Only for Physical tab) -->
+                        <div v-if="activeCardIndex === 2" class="comparison-splitter"></div>
+
+                        <!-- Object Viewer Column (Only for Physical tab) -->
+                        <div v-if="activeCardIndex === 2" class="comparison-column" style="flex: 1;">
+                            <div class="card-details-wrapper">
+                                <!-- Standardized Title -->
+                                <div class="column-header">
+                                    <i data-lucide="mouse-pointer-click" class="icon-xtiny"></i>
+                                    Object Viewer
+                                </div>
+                                <div v-if="selectedNode" class="details-content-wrapper">
+                                     <div class="details-content">
                      <!-- Selected Object Header -->
                      <div class="object-header" v-if="selectedNodeHeader">
                         
@@ -233,19 +244,6 @@
                              </div>
                          </div>
 
-                         <!-- Node Parameters (comentado) -->
-                         <!-- TAG: comentado
-                         <div v-if="selectedNodeParams" class="node-parameters-container" style="display: none;">
-                             <div class="params-list">
-                                 <div v-for="(param, idx) in selectedNodeParams" :key="idx" class="param-item">
-                                     <span class="param-key">- {{ param.key }} :</span>
-                                     <button v-if="param.node" class="param-node-btn" @click="handleNodeSelect(param.node)" v-html="formatNodeButtonLabel(param.node)">
-                                     </button>
-                                     <span v-else class="param-value-plain" v-html="param.value"></span>
-                                 </div>
-                             </div>
-                         </div>
-                         -->
                      </div>
 
                      <!-- Data Content -->
@@ -371,37 +369,42 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
                         
                         
-                     </div>
-                 </div>
+                </div>
+            </div>
 
                  <div v-else class="empty-details">
                      <i data-lucide="mouse-pointer-click" class="empty-details-icon"></i>
                      <p class="empty-details-text">Select a item in the query tree to inspect its details and data.</p>
                  </div>
-            </div>
+             </div>
                         </div>
                     </div>
 
-                    <!-- Statistics Card (3) -->
-                    <div v-if="activeCardIndex === 3" class="statistics-card-content" style="padding: 1.5rem; height: calc(100vh - 200px); overflow: hidden; display: flex; flex-direction: row; gap: 1rem;">
+                    <!-- Statistics Card (4) -->
+                    <div v-if="activeCardIndex === 4" class="statistics-card-content" style="padding: 1.25rem; height: 100%; overflow: hidden; display: flex; flex-direction: row; gap: 1.25rem; background: var(--bg-secondary);">
                         <!-- Left: Table -->
-                        <div style="flex: 1.4; min-width: 0; overflow-y: auto; background: var(--bg-primary); padding: 1rem 1rem 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column;">
+                        <div v-show="showStatsTable" style="flex: 1.4; min-width: 320px; overflow-y: auto; background: var(--bg-primary); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: all 0.3s ease;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                <i data-lucide="table" class="icon-tiny" style="color: var(--accent-primary);"></i>
+                                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Data Table</span>
+                            </div>
 
-                            <div style="overflow-x: auto; flex: 1; margin-bottom: 0.75rem;">
+                            <div style="overflow-x: auto; flex: 1; margin-bottom: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
                                 <table style="border-collapse: collapse; width: 100%; font-size: 0.78rem; font-family: 'Inter', sans-serif;">
-                                    <thead>
+                                    <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-primary);">
                                         <tr>
                                             <th v-for="(header, hidx) in chartDataRef.headers" :key="header"
                                                 :style="[
-                                                    'padding: 0.45rem 0.6rem;',
+                                                    'padding: 0.6rem 0.75rem;',
                                                     'text-align: ' + (hidx === 0 ? 'left' : 'center') + ';',
                                                     'font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;',
-                                                    'color: var(--accent-primary);',
-                                                    'border-bottom: 2px solid var(--border-color);',
+                                                    'color: var(--text-secondary);',
+                                                    'border-bottom: 1px solid var(--border-color);',
                                                     'white-space: normal; word-break: break-word;',
-                                                    hidx === 0 ? 'min-width: 90px; max-width: 140px;' : 'min-width: 70px;'
+                                                    hidx === 0 ? 'min-width: 100px; max-width: 160px;' : 'min-width: 80px;'
                                                 ].join(' ')">
                                                 {{ header }}
                                             </th>
@@ -413,11 +416,11 @@
                                             <td v-for="(cell, cidx) in row" :key="cidx"
                                                 :title="cidx === 0 ? String(cell) : undefined"
                                                 :style="[
-                                                    'padding: 0.4rem 0.6rem;',
+                                                    'padding: 0.5rem 0.75rem;',
                                                     'border-bottom: 1px solid var(--border-color);',
                                                     cidx === 0
-                                                        ? 'text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; font-weight: 500; color: var(--text-primary);'
-                                                        : 'text-align: center; color: var(--accent-primary); font-variant-numeric: tabular-nums;'
+                                                        ? 'text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; font-weight: 600; color: var(--text-primary);'
+                                                        : 'text-align: center; color: var(--accent-primary); font-variant-numeric: tabular-nums; font-weight: 500;'
                                                 ].join(' ')">
                                                 {{ cell }}
                                             </td>
@@ -427,26 +430,31 @@
                             </div>
 
                             <!-- Aggregate / Disaggregate Button -->
-                            <button @click="aggregateNodes = !aggregateNodes; reDrawCharts()" class="action-btn" style="margin-top: auto; width: 100%; justify-content: center; border: 1px solid var(--border-color); margin-bottom: 0.25rem;">
+                            <button @click="aggregateNodes = !aggregateNodes; reDrawCharts()" class="action-btn-premium" style="margin-top: auto; width: 100%; justify-content: center; margin-bottom: 0.25rem;">
                                 <i :data-lucide="aggregateNodes ? 'minus-circle' : 'plus-circle'" class="icon-tiny"></i>
                                 {{ aggregateNodes ? "Disaggregate Nodes" : "Aggregate Nodes" }}
                             </button>
                         </div>
 
-                        <!-- Right: Grid of Charts -->
-                        <div style="flex: 1.3; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1rem; overflow-y: auto; min-height: 0; min-width: 0;">
-                            <div v-for="metric in statsMetrics" :key="metric" style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; min-height: 0;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.4rem;">
-                                    <h5 style="color: var(--text-primary); margin: 0; font-size: 0.8rem;">{{ metric }}</h5>
-                                    <div style="display: flex; gap: 0.3rem; align-items: center;">
+                        <!-- Right: Vertical Stack of Charts -->
+                        <div style="flex: 2; display: flex; flex-direction: column; gap: 1.5rem; overflow-y: auto; overflow-x: hidden; min-width: 0; padding-right: 0.5rem; scroll-behavior: smooth;">
+                            <div v-for="metric in statsMetrics" :key="metric" style="background: var(--bg-primary); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; min-height: 480px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s ease;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; gap: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                        <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-primary);"></div>
+                                        <h5 style="color: var(--text-primary); margin: 0; font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em;">{{ metric }}</h5>
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem; align-items: center;">
                                         <button @click="sortAscending[metric] = !sortAscending[metric]; drawStatsChart(metric)"
                                             :title="sortAscending[metric] ? 'Unsort' : 'Sort ascending'"
-                                            :style="'padding: 0.15rem 0.35rem; border-radius: 4px; border: 1px solid var(--border-color); background: ' + (sortAscending[metric] ? 'var(--accent-primary)' : 'var(--bg-secondary)') + '; color: ' + (sortAscending[metric] ? '#fff' : 'var(--text-primary)') + '; font-size: 0.7rem; cursor: pointer; line-height: 1;'">
-                                            ↑ Sort
+                                            class="action-btn-small"
+                                            :style="sortAscending[metric] ? 'background: var(--accent-primary); color: white;' : ''">
+                                            <i data-lucide="arrow-up-narrow-wide" class="icon-xtiny"></i>
+                                            Sort
                                         </button>
-                                        <select v-model="chartTypes[metric]" @change="drawStatsChart(metric)" style="padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.75rem; cursor: pointer;">
-                                            <option value="bar">Bar</option>
-                                            <option value="pie">Pie</option>
+                                        <select v-model="chartTypes[metric]" @change="drawStatsChart(metric)" class="premium-select" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                            <option value="bar">Bar Chart</option>
+                                            <option value="pie">Pie Chart</option>
                                         </select>
                                     </div>
                                 </div>
@@ -455,23 +463,55 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div v-if="statsMetrics.length === 0" class="empty-state" style="width: 100%;">
-                            <i data-lucide="bar-chart-2" class="empty-icon" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
-                            <h2 class="empty-title">No Statistics Available</h2>
-                            <p class="empty-desc">The current node data does not have numeric statistics to chart.</p>
+                    <div v-if="activeCardIndex === 4 && statsMetrics.length === 0" class="empty-state" style="width: 100%;">
+                        <i data-lucide="bar-chart-2" class="empty-icon" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
+                        <h2 class="empty-title">No Statistics Available</h2>
+                        <p class="empty-desc">The current node data does not have numeric statistics to chart.</p>
+                    </div>
+
+                    <!-- Comparison View (3) -->
+                    <div v-if="activeCardIndex === 3" class="comparison-view">
+                        <div class="comparison-column">
+                            <div class="column-header">
+                                <i data-lucide="git-commit" class="icon-xtiny"></i>
+                                Logical Tree
+                            </div>
+                            <div class="tree-wrapper mini-canvas">
+                                <QueryTree :treeData="logicalTreeData" :ref="el => setTreeRef(el, 40)" @node-select="n => handleNodeSelect(n, 0)" />
+                            </div>
+                        </div>
+                        <div class="comparison-splitter"></div>
+                        <div class="comparison-column">
+                            <div class="column-header">
+                                <i data-lucide="zap" class="icon-xtiny"></i>
+                                Optimized Tree
+                            </div>
+                            <div class="tree-wrapper mini-canvas">
+                                <QueryTree :treeData="optimizedTreeData" :ref="el => setTreeRef(el, 41)" @node-select="n => handleNodeSelect(n, 1)" />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <button class="nav-arrow right-arrow" @click="activeCardIndex = activeCardIndex < 3 ? activeCardIndex + 1 : 0">
-                    <i data-lucide="chevron-right" style="width: 2.5rem; height: 2.5rem;" stroke-width="3"></i>
-                </button>
+            <!-- Excel-style Tab Bar -->
+            <div v-if="logicalTreeData" class="excel-tab-bar">
+                <div 
+                    v-for="(title, index) in cardTitles" 
+                    :key="index" 
+                    class="excel-tab" 
+                    :class="{ 'active': activeCardIndex === index }"
+                    @click="activeCardIndex = index"
+                >
+                    <i :data-lucide="index === 4 ? 'bar-chart-2' : (index === 3 ? 'columns' : 'tree-deciduous')" class="tab-icon"></i>
+                    <span>{{ title }}</span>
+                </div>
             </div>
 
         </div>
-    </main>
-  </div>
+    </div>
+</main>
+</div>
 </template>
 
 <script setup>
@@ -488,7 +528,7 @@ const queryInput = ref('   ');
 const isLoading = ref(false);
 
 const activeCardIndex = ref(0);
-const cardTitles = ['Logical Tree', 'Optimized Logical Tree', 'Physical Tree', 'Statistics'];
+const cardTitles = ['Logical Tree', 'Optimized Logical Tree', 'Physical Tree', 'Analysis (L vs O)', 'Statistics'];
 
 const logicalTreeData = ref(null);
 const optimizedTreeData = ref(null); // Mocked for now
@@ -526,7 +566,14 @@ const setTreeRef = (el, index) => {
 
 // Re-center tree when switching tabs to prevent decentralization bug
 watch(activeCardIndex, (newIdx) => {
-    if (newIdx < 3) {
+    if (newIdx === 3) {
+        nextTick(() => {
+            const t40 = treeRefs.value[40];
+            const t41 = treeRefs.value[41];
+            if (t40 && typeof t40.centerTree === 'function') t40.centerTree();
+            if (t41 && typeof t41.centerTree === 'function') t41.centerTree();
+        });
+    } else if (newIdx < 3) {
         nextTick(() => {
             // Force re-selection of root if nothing is selected in this tab
             // to prevent "stale" selection from previous tab appearing
@@ -568,6 +615,8 @@ const pathSearchQuery = ref('');
 const pathFilterColumn = ref([]); // Array of active columns: 'source', 'target', 'length'
 
 // Sidebar state
+const showStatsTable = ref(true);
+const leftSidebarCollapsed = ref(false);
 const sidebarExpanded = ref(false);
 const showPresets = ref(false);
 const showGraphModal = ref(false);
@@ -656,8 +705,8 @@ const buildRealStatsFromTree = () => {
     const headers = ['Operator', 'Input (#Paths)', 'Cardinality (#Paths)', 'Selectivity', 'Runtime (ms)', 'Throughput (paths/ms)'];
     const rows = [];
 
-    // Use the physical tree (every node has PO data embedded by transformPhysicalPlan)
-    const treeData = physicalTreeData.value;
+    // Use the logical tree as requested ("Los datos son los del logical tree")
+    const treeData = logicalTreeData.value;
     if (!treeData || !treeData.nodes || treeData.nodes.length === 0) {
         return { headers, rows };
     }
@@ -665,32 +714,55 @@ const buildRealStatsFromTree = () => {
     // Use the overall query time stored at runQuery time (reliable, not from tree root lookup)
     const queryTime = overallQueryTime.value;
 
-    // First pass: collect raw PO stats from each physical node
+    // First pass: collect raw PO stats from each logical node
     const rawRows = [];
-    let totalCalcPaths = 0;
-    let allRunTimeZero = true;
+    let totalReportedTime = 0;
+    let unaccountedPaths = 0;
 
     treeData.nodes.forEach(node => {
         const cleanLabel = stripHtml(node.label || 'Unknown');
         const po = node.apiResults?.metadata?.po;
 
         let runtime = po?.runningTimeMS ?? 0;
-        // Input = all paths the operator considered (calculatedPaths)
-        // Cardinality = paths actually returned after filtering (returnedPaths)
-        let inputPaths = po?.calculatedPaths ?? 0;
-        let cardinality = po?.returnedPaths ?? 0;
+        
+        // Use PO stats if available, otherwise fallback to counting apiResults.data rows
+        let inputPaths = 0;
+        let cardinality = 0;
 
-        if (runtime > 0) allRunTimeZero = false;
-        totalCalcPaths += inputPaths;
+        if (po) {
+            inputPaths = po.calculatedPaths ?? 0;
+            cardinality = po.returnedPaths ?? 0;
+        } else if (node.apiResults?.data && Array.isArray(node.apiResults.data)) {
+            // Fallback: If mapping failed but we have data, use the data length
+            // Subtract 1 for the header row
+            cardinality = Math.max(0, node.apiResults.data.length - 1);
+            inputPaths = cardinality; // Best estimate
+        }
+
+        totalReportedTime += runtime;
+        if (runtime === 0) {
+            unaccountedPaths += inputPaths;
+        }
 
         rawRows.push({ cleanLabel, runtime, inputPaths, cardinality });
     });
 
-    // Second pass: distribute overall time proportionally if all runningTimeMS are 0
+    // Calculate time to distribute among nodes reporting 0ms
+    const remainingTime = Math.max(0, queryTime - totalReportedTime);
+
+    // Second pass: Finalize stats and distribute remaining time
     rawRows.forEach(row => {
         let runtime = row.runtime;
-        if (allRunTimeZero && queryTime > 0 && totalCalcPaths > 0) {
-            runtime = parseFloat(((row.inputPaths / totalCalcPaths) * queryTime).toFixed(6));
+        
+        if (runtime === 0 && remainingTime > 0 && unaccountedPaths > 0) {
+            // Proportional slice of the remaining unaccounted time
+            runtime = parseFloat(((row.inputPaths / unaccountedPaths) * remainingTime).toFixed(6));
+        } else if (totalReportedTime === 0 && queryTime > 0) {
+            // Fallback: If EVERYTHING is 0, distribute total time among all nodes
+            const totalPaths = rawRows.reduce((sum, r) => sum + r.inputPaths, 0);
+            if (totalPaths > 0) {
+                runtime = parseFloat(((row.inputPaths / totalPaths) * queryTime).toFixed(6));
+            }
         }
 
         const selectivity = (row.inputPaths > 0)
@@ -746,6 +818,7 @@ const reDrawCharts = () => {
     });
 };
 
+// Called when navigating to card 3 via the carousel
 const openStatsModal = () => {
     statsMetrics.value = [];
     selectedMetric.value = '';
@@ -762,12 +835,11 @@ const openStatsModal = () => {
         if (isNum) {
             statsMetrics.value.push(headers[i]);
             if (!chartTypes.value[headers[i]]) {
-                chartTypes.value[headers[i]] = 'bar'; // Default initialize to bar
+                chartTypes.value[headers[i]] = 'bar';
             }
         }
     }
     
-    activeCardIndex.value = 3;
     nextTick(() => {
         if (window.lucide) window.lucide.createIcons();
         if (statsMetrics.value.length > 0) {
@@ -775,6 +847,14 @@ const openStatsModal = () => {
         }
     });
 };
+
+// Auto-trigger stats when carousel navigates to card 3
+watch(activeCardIndex, (newIdx) => {
+    if (newIdx === 3) {
+        openStatsModal();
+    }
+});
+
 
 const closeStatsModal = () => {
     showStatsModal.value = false;
@@ -2451,13 +2531,16 @@ const runQuery = async () => {
         }
 
         // 3. Transform plans
-        const transformedLogical = transformLogicalPlan(logicalPlan, queryInput.value);
-        let transformedPhysical = { nodes: [], edges: [] };
+        // Logical Tree (Card 0) uses rawPlan (unoptimized) if available
+        const transformedLogical = transformLogicalPlan(rawPlan || logicalPlan, queryInput.value);
+        // Optimized Tree (Card 1) uses logicalPlan (optimized) from backend
+        const transformedOptimized = transformLogicalPlan(logicalPlan, queryInput.value);
         
+        let transformedPhysical = { nodes: [], edges: [] };
         if (queryResults && queryResults.metadata && queryResults.metadata.po) {
             transformedPhysical = transformPhysicalPlan(queryResults.metadata.po);
-        } else if (rawPlan) {
-            transformedPhysical = transformLogicalPlan(rawPlan, queryInput.value);
+        } else if (rawPlan || logicalPlan) {
+            transformedPhysical = transformLogicalPlan(rawPlan || logicalPlan, queryInput.value);
         }
         
         const attachResultsToRoot = (tree, isPhysical) => {
@@ -2478,6 +2561,7 @@ const runQuery = async () => {
         };
 
         const logicalRoot = attachResultsToRoot(transformedLogical, false);
+        const optimizedRoot = attachResultsToRoot(transformedOptimized, false);
         const physicalRoot = attachResultsToRoot(transformedPhysical, true);
 
         // Store overall query time for statistics (reliable single source of truth)
@@ -2489,16 +2573,16 @@ const runQuery = async () => {
         }
 
         // 4. Auto-enrich logical tree nodes from metadata.po
+        // We enrich the MAIN logical tree as that's what the Statistics card uses
         if (queryResults && queryResults.metadata && queryResults.metadata.po) {
             enrichLogicalTreeFromPO(transformedLogical, queryResults.metadata.po);
+            enrichLogicalTreeFromPO(transformedOptimized, queryResults.metadata.po);
         }
 
         logicalTreeData.value = transformedLogical;
+        optimizedTreeData.value = transformedOptimized;
         physicalTreeData.value = transformedPhysical;
-        
-        // Mock optimized tree for now (Duplicate Logical)
-        optimizedTreeData.value = JSON.parse(JSON.stringify(transformedLogical));
-        const optimizedRoot = attachResultsToRoot(optimizedTreeData.value, false);
+
 
         nextTick(() => {
             if (window.lucide) window.lucide.createIcons();
@@ -2947,15 +3031,16 @@ const enrichLogicalTreeFromPO = (logicalTree, poRoot) => {
         }
         if (label.includes('⋈') || label.includes('trail') || name.includes('join') || name.includes('trail')) return 'join';
         if (label.includes('∪') || name.includes('union')) return 'union';
-        if (label.includes('φ') || name.includes('recursive') || name.includes('kleene')) return 'recursive';
+        if (label.includes('φ') || label.includes('Φ') || name.includes('recursive') || name.includes('kleene')) return 'recursive';
         if (label.includes('π') || name.includes('projection')) return 'projection';
         return 'unknown';
     };
 
     // 3. Map PO type strings to logical types
     const getPOLogicalType = (poNode) => {
-        const type = (poNode.typeStatistics || '').toLowerCase();
-        if (type.includes('selectionbylabel') || type.includes('selection')) return 'selectionByLabel';
+        const type = (poNode.typeStatistics || poNode.type || poNode.name || '').toLowerCase();
+        if (type.includes('selectionbylabel')) return 'selectionByLabel';
+        if (type.includes('selection')) return 'selection';
         if (type.includes('scan') || type.includes('paths')) return 'scan';
         if (type.includes('join')) return 'join';
         if (type.includes('union')) return 'union';
@@ -3470,7 +3555,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 20px;
-    max-width: 1000px; /* Increased from 750px */
+    max-width: 1400px; /* Increased from 1000px */
 }
 
 .query-bar-container {
@@ -3483,7 +3568,6 @@ onMounted(() => {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     height: 40px; /* Increased from 3rem */
     box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
-    width: 500px;
 }
 
 .query-bar-container:focus-within {
@@ -5326,61 +5410,100 @@ onMounted(() => {
     transform: scale(0.97);
     box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3);
 }
-/* Carousel Styling */
-.carousel-view {
+/* Sheet & Excel Tab Bar Styling */
+.sheet-view {
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding-top: 2rem;
-    height: 100vh;
+    flex-direction: column;
+    height: calc(100vh - 80px); /* Adjust based on header height */
+    overflow: hidden;
+    background-color: var(--bg-secondary);
 }
 
-.carousel-container {
+.sheet-container {
+    flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1.5rem;
-    width: 95%;
-    max-width: 1400px;
-    margin: 0 auto;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    margin: 0.5rem 0.5rem 0 0.5rem;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 }
 
-.nav-arrow {
-    background-color: #3b82f6;
-    border: none;
-    color: white;
-    border-radius: 12px;
-    width: 3.5rem;
-    height: 4.5rem;
+.excel-tab-bar {
+    height: 32px;
+    background-color: var(--bg-secondary);
+    display: flex;
+    align-items: flex-end;
+    padding: 0 1rem;
+    border-top: 1px solid var(--border-color);
+    gap: 2px;
+    z-index: 10;
+}
+
+.excel-tab {
+    height: 28px;
+    padding: 0 1.25rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-radius: 0 0 0 0; /* Square Excel style or slight round */
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-    transition: all 0.2s ease;
-    flex-shrink: 0;
+    transition: all 0.2s;
+    position: relative;
+    user-select: none;
 }
 
-.nav-arrow:hover {
-    background-color: #2563eb;
-    color: #ffffff;
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+.excel-tab:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.excel-tab.active {
+    height: 30px;
+    background-color: var(--bg-primary);
+    color: #3b82f6;
+    font-weight: 700;
+    border-top: 3px solid #3b82f6;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    margin-top: -2px;
+}
+
+.excel-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--bg-primary);
+}
+
+.tab-icon {
+    width: 0.9rem;
+    height: 0.9rem;
 }
 
 .tree-card-content {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    height: calc(100vh - 120px);
+    height: 100%;
     overflow: hidden;
-    background-color: var(--bg-primary); /* Sincronizado */
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
+    position: relative;
 }
 
 .tree-wrapper.mini-canvas {
-    flex: 1;
+    flex: 1.2;
     position: relative;
     overflow: hidden;
     background-color: var(--bg-primary);
@@ -5391,44 +5514,38 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    padding: 2rem;
-    background-color: var(--bg-primary); /* Mismo fondo */
-    border-left: 1px solid var(--border-color); /* Delimiter */
+    background-color: var(--bg-primary);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.details-content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
 }
 
 .card-title-container {
-    text-align: center;
-    margin-bottom: 2rem;
-    margin-top: 0.5rem;
+    text-align: left;
+    margin-bottom: 1rem;
+    margin-top: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .carousel-card-title {
-    font-size: 2.25rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
     font-family: 'Inter', sans-serif;
-    letter-spacing: -0.025em;
-}
-
-.carousel-card {
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    width: 100%;
-    max-width: 1200px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    overflow: hidden;
-    animation: fadeIn 0.4s ease-out;
 }
 
 .card-title-bar {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1.25rem;
     background-color: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
 }
@@ -5461,5 +5578,128 @@ onMounted(() => {
 .details-panel-inner .details-header {
     background-color: var(--bg-secondary);
     border-radius: 12px 12px 0 0;
+}
+
+/* Comparison View Layout */
+.comparison-view {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    width: 100%;
+}
+
+.comparison-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.column-header {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.comparison-splitter {
+    width: 2px;
+    background-color: var(--border-color);
+    opacity: 0.5;
+    position: relative;
+}
+
+.comparison-splitter::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 40px;
+    background-color: var(--border-color);
+    border-radius: 4px;
+}
+
+.action-btn-premium {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.action-btn-premium:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    filter: brightness(1.1);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.action-btn-premium:active {
+    transform: translateY(0);
+}
+
+.action-btn-small {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn-small:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+}
+
+.premium-select {
+    appearance: none;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.35rem 1.5rem 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+    transition: all 0.2s;
+}
+
+.premium-select:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.premium-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 </style>
