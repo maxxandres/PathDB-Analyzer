@@ -108,6 +108,8 @@ watch(currentTheme, (newTheme) => {
   --text-primary: #1e293b;
   --text-secondary: #64748b;
   --border-color: #e2e8f0;
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
 }
 
 [data-theme='dark'] {
@@ -116,6 +118,8 @@ watch(currentTheme, (newTheme) => {
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --border-color: #334155;
+  --accent-primary: #3b82f6;
+  --accent-hover: #60a5fa;
 }
 
 .theme-wrapper {

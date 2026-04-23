@@ -137,17 +137,7 @@ const focusNode = (nodeId) => {
     if (!network) return;
     network.selectNodes([nodeId]);
     
-    // Pan to the node but retain the current view scale, or use a general view scale
-    const currentScale = network.getScale();
-    const targetScale = currentScale > 1.2 ? 1.0 : currentScale; // Prevent aggressive zoom
-    
-    network.focus(nodeId, {
-        scale: targetScale,
-        animation: {
-            duration: 800,
-            easingFunction: 'easeInOutQuad'
-        }
-    });
+    // Camera animation removed to prevent camera movement on node click as requested
 };
 
 const centerTree = () => {
