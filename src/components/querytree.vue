@@ -59,7 +59,7 @@ const renderTree = () => {
                 multi: 'html',
                 bold: { size: 14, vadjust: 0, mod: 'bold' },
                 ital: { size: 10, vadjust: 10, mod: 'bold' },
-                mono: { size: 10, vadjust: -10, mod: 'bold' }
+                mono: { size: 10, face: 'Inter', vadjust: -10, mod: 'bold' }
             },
             borderWidth: 1,
             borderWidthSelected: 3,
@@ -144,10 +144,7 @@ const centerTree = () => {
     if (network) {
         network.redraw(); // Fixes container size if it was hidden
         network.fit({
-            animation: {
-                duration: 500,
-                easingFunction: 'easeInOutQuad'
-            }
+            animation: false
         });
     }
 };

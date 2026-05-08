@@ -117,5 +117,19 @@ export const api = {
         if (!result.success) throw new Error(result.message || 'Search failed');
         console.log('Search Response:', result);
         return result;
+    },
+
+    /**
+     * Fetches the dynamic database schema.
+     */
+    async fetchSchema(loginToken, sessionToken) {
+        const response = await fetch(`${API_BASE_URL}/database/schema`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ loginToken, sessionToken })
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Failed to fetch schema');
+        return result;
     }
 };

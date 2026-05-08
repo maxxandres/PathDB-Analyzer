@@ -12,7 +12,7 @@
                         <QueryInput 
                             v-model="queryInput" 
                             class="header-query-input"
-                            :schemaData="{}"
+                            :schemaData="SCHEMA_DATA"
                             placeholder="Enter PathDB query..."
                             @keyup.enter.ctrl="runQuery"
                         />
@@ -75,7 +75,6 @@
                         Export Tree
                     </button>
                 </div> -->
-            <!-- Graph Image Modal -->
             <div v-if="showGraphModal" class="sequence-modal-overlay" @click.self="showGraphModal = false" style="z-index: 9999;">
                 <div class="sequence-modal-content" style="max-width: 80vw; max-height: 80vh; display: flex; flex-direction: column;">
                     <div class="sequence-modal-header">
@@ -86,6 +85,75 @@
                     </div>
                     <div class="sequence-modal-body" style="flex: 1; display: flex; justify-content: center; align-items: center; overflow: auto; padding: 1rem; background-color: var(--bg-secondary);">
                         <img src="../assets/graph.png" alt="Default Graph" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sequence Detail Modal (Moved here to be global) -->
+            <div v-if="isSequenceModalOpen" class="sequence-modal-overlay" @click.self="closeSequenceModal">
+                <div class="sequence-modal-content">
+                    <div class="sequence-modal-header">
+                        <h3 class="sequence-modal-title">Path Sequence Details</h3>
+                        <button @click="closeSequenceModal" class="sequence-modal-close-btn">
+                            <i data-lucide="x" class="icon-small"></i>
+                        </button>
+                    </div>
+                    <div class="sequence-modal-body" style="display: flex; flex-direction: column; width: 100%;">
+                        <!-- Path Summary Table -->
+                        <div class="sequence-summary-wrapper" style="margin: 0 auto 2rem auto; width: fit-content; max-width: 90%;">
+                            <table class="premium-table sequence-summary-table" style="margin: 0; min-width: 300px; text-align: center; border: 1px solid black;">
+                                <thead>
+                                    <tr>
+                                        <th>Source</th>
+                                        <th>Target</th>
+                                        <th>Length</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-if="selectedSequence && selectedSequence.length > 0">
+                                        <td>{{ selectedSequence.filter(s => s.type === 'node')[0]?.id || '?' }}</td>
+                                        <td>{{ selectedSequence.filter(s => s.type === 'node').slice(-1)[0]?.id || '?' }}</td>
+                                        <td>{{ selectedSequence.filter(s => s.type === 'edge').length }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h4 style="color: var(--text-color); margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600;">Path Sequence</h4>
+                        <div class="sequential-path horizontal">
+                            <template v-for="(segment, segmentIdx) in selectedSequence" :key="segmentIdx">
+                                
+                                <div class="sequence-row" :class="segment.type">
+                                    <div class="sequence-symbol">
+                                        {{ segment.type === 'node' ? '●' : '→' }}
+                                    </div>
+                                    <div class="sequence-details-card">
+                                        <div class="sequence-card-header">
+                                             <span class="branded-label">{{ segment.label }}</span>
+                                             <span class="symbolic-sep">›</span>
+                                             <span class="branded-id">{{ segment.id }}</span>
+                                        </div>
+                                        
+                                        <div v-if="segment.type === 'edge' && (segment.source || segment.target)" class="sequence-badges mt-1">
+                                            <span v-if="segment.source" class="mini-badge-outline">Src: {{ segment.source }}</span>
+                                            <span v-if="segment.target" class="mini-badge-outline">Tgt: {{ segment.target }}</span>
+                                        </div>
+
+                                        <div class="sequence-properties mt-2" v-if="segment.properties && Object.keys(segment.properties).filter(k => !['id', 'label', 'type', 'source', 'target'].includes(k)).length > 0">
+                                            <template v-for="(val, key) in segment.properties" :key="key">
+                                                <div v-if="!['id', 'label', 'type', 'source', 'target'].includes(key)" class="sequence-kv">
+                                                    <span class="prop-key">{{ key }}:</span>
+                                                    <span class="prop-val">{{ val }}</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="segmentIdx < selectedSequence.length - 1 && segment.type === 'node'" class="sequence-connector"></div>
+
+                            </template>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -132,79 +200,12 @@
                                 <QueryTree v-show="activeCardIndex === 1" :ref="el => setTreeRef(el, 1)" :treeData="optimizedTreeData" @node-select="n => handleNodeSelect(n, 1)" />
                                 <QueryTree v-show="activeCardIndex === 2" :ref="el => setTreeRef(el, 2)" :treeData="physicalTreeData" @node-select="n => handleNodeSelect(n, 2)" />
                                 
-                                <!-- Sequence Detail Modal (Now in Canvas side) -->
-                    <div v-if="isSequenceModalOpen" class="sequence-modal-overlay" @click.self="closeSequenceModal">
-                        <div class="sequence-modal-content">
-                            <div class="sequence-modal-header">
-                                <h3 class="sequence-modal-title">Path Sequence Details</h3>
-                                <button @click="closeSequenceModal" class="sequence-modal-close-btn">
-                                    <i data-lucide="x" class="icon-small"></i>
-                                </button>
-                            </div>
-                            <div class="sequence-modal-body" style="display: flex; flex-direction: column; width: 100%;">
-                                <!-- Path Summary Table -->
-                                <div class="sequence-summary-wrapper" style="margin: 0 auto 2rem auto; width: fit-content; max-width: 90%;">
-                                    <table class="premium-table sequence-summary-table" style="margin: 0; min-width: 300px; text-align: center; border: 1px solid black;">
-                                        <thead>
-                                            <tr>
-                                                <th>Source</th>
-                                                <th>Target</th>
-                                                <th>Length</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr v-if="selectedSequence && selectedSequence.length > 0">
-                                                <td>{{ selectedSequence.filter(s => s.type === 'node')[0]?.id || '?' }}</td>
-                                                <td>{{ selectedSequence.filter(s => s.type === 'node').slice(-1)[0]?.id || '?' }}</td>
-                                                <td>{{ selectedSequence.filter(s => s.type === 'edge').length }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
 
-                                <h4 style="color: var(--text-color); margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600;">Path Sequence</h4>
-                                <div class="sequential-path horizontal">
-                                    <template v-for="(segment, segmentIdx) in selectedSequence" :key="segmentIdx">
-                                        
-                                        <div class="sequence-row" :class="segment.type">
-                                            <div class="sequence-symbol">
-                                                {{ segment.type === 'node' ? '●' : '→' }}
-                                            </div>
-                                            <div class="sequence-details-card">
-                                                <div class="sequence-card-header">
-                                                     <span class="branded-label">{{ segment.label }}</span>
-                                                     <span class="symbolic-sep">›</span>
-                                                     <span class="branded-id">{{ segment.id }}</span>
-                                                </div>
-                                                
-                                                <div v-if="segment.type === 'edge' && (segment.source || segment.target)" class="sequence-badges mt-1">
-                                                    <span v-if="segment.source" class="mini-badge-outline">Src: {{ segment.source }}</span>
-                                                    <span v-if="segment.target" class="mini-badge-outline">Tgt: {{ segment.target }}</span>
-                                                </div>
-
-                                                <div class="sequence-properties mt-2" v-if="segment.properties && Object.keys(segment.properties).filter(k => !['id', 'label', 'type', 'source', 'target'].includes(k)).length > 0">
-                                                    <template v-for="(val, key) in segment.properties" :key="key">
-                                                        <div v-if="!['id', 'label', 'type', 'source', 'target'].includes(key)" class="sequence-kv">
-                                                            <span class="prop-key">{{ key }}:</span>
-                                                            <span class="prop-val">{{ val }}</span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div v-if="segmentIdx < selectedSequence.length - 1 && segment.type === 'node'" class="sequence-connector"></div>
-
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                                 </div>
                             </div>
 
                         <!-- Splitter (Only for Physical tab) -->
-                        <div v-if="activeCardIndex === 2" class="comparison-splitter"></div>
+                   
 
                         <!-- Object Viewer Column (Only for Physical tab) -->
                         <div v-if="activeCardIndex === 2" class="comparison-column" style="flex: 1;">
@@ -236,6 +237,75 @@
                     />
 
 
+                    <!-- Graph Info (6) -->
+                    <div v-if="activeCardIndex === 6" class="comparison-view" style="flex: 1; overflow: hidden; display: flex;">
+                        <div class="comparison-column" style="flex: 1.2; overflow: hidden; display: flex; flex-direction: column;">
+                            <div class="column-header" style="margin-bottom: 0;">
+                                <i data-lucide="info" class="icon-xtiny"></i>
+                                Graph Info
+                            </div>
+                            <GraphInfoPanel 
+                                :graphInfo="graphInfo"
+                                :labelColors="schemaLabelColors"
+                                :schemaData="SCHEMA_DATA"
+                                @schema-node-click="handleGraphInfoNodeClick"
+                                @schema-edge-click="handleGraphInfoEdgeClick"
+                            />
+                        </div>
+                       
+                        <div v-if="selectedGraphInfoSequence.length > 0" class="comparison-column" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-primary);">
+                            <PathObjectViewer 
+                                :sequence="selectedGraphInfoSequence"
+                                mode="schema"
+                                @navigate="handleSchemaNavigate"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Schema Visualization (7) -->
+                    <div v-if="activeCardIndex === 7" class="comparison-view" style="flex: 1; overflow: hidden; display: flex;">
+                        <div class="comparison-column" style="flex: 1.2; overflow: hidden; display: flex; flex-direction: column;">
+                            <div class="column-header" style="margin-bottom: 0;">
+                                <i data-lucide="share-2" class="icon-xtiny"></i>
+                                Graph Schema
+                            </div>
+                            <GraphSchemaPath
+                                :schemaData="SCHEMA_DATA"
+                                :labelColors="schemaLabelColors"
+                                @node-click="handleGraphInfoNodeClick"
+                                @edge-click="handleGraphInfoEdgeClick"
+                            />
+                        </div>
+                       
+                        <div v-if="selectedGraphInfoSequence.length > 0" class="comparison-column" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-primary);">
+                            <PathObjectViewer 
+                                :sequence="selectedGraphInfoSequence"
+                                mode="schema"
+                                @navigate="handleSchemaNavigate"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Results Table (8) -->
+                    <div v-if="activeCardIndex === 8" class="comparison-view" style="flex: 1; overflow: hidden; display: flex;">
+                        <div class="comparison-column" style="flex: 1.2; overflow: hidden; display: flex; flex-direction: column;">
+                            <div class="column-header" style="margin-bottom: 0;">
+                                <i data-lucide="table" class="icon-xtiny"></i>
+                                Results Table
+                            </div>
+                            <ResultsTable 
+                                :tableData="resultsTableData"
+                                @open-sequence="handleTableOpenSequence"
+                            />
+                        </div>
+                       
+                        <div v-if="selectedTableSequence.length > 0" class="comparison-column" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-primary);">
+                            <PathObjectViewer 
+                                :sequence="selectedTableSequence"
+                            />
+                        </div>
+                    </div>
+
                     <!-- Comparison View (3) -->
                     <div v-if="activeCardIndex === 3" class="comparison-view">
                         <div class="comparison-column">
@@ -247,7 +317,7 @@
                                 <QueryTree :treeData="logicalTreeData" :ref="el => setTreeRef(el, 40)" @node-select="n => handleNodeSelect(n, 0)" />
                             </div>
                         </div>
-                        <div class="comparison-splitter"></div>
+                       
                         <div class="comparison-column">
                             <div class="column-header">
                                 <i data-lucide="zap" class="icon-xtiny"></i>
@@ -270,7 +340,7 @@
                                 <QueryTree :treeData="optimizedTreeData" :ref="el => setTreeRef(el, 42)" @node-select="n => handleNodeSelect(n, 1)" />
                             </div>
                         </div>
-                        <div class="comparison-splitter"></div>
+                       
                         <div class="comparison-column">
                             <div class="column-header">
                                 <i data-lucide="layers" class="icon-xtiny"></i>
@@ -291,7 +361,7 @@
                             :class="{ 'active': activeCardIndex === index }"
                             @click="activeCardIndex = index"
                         >
-                            <i :data-lucide="index === 5 ? 'bar-chart-2' : (index >= 3 ? 'columns' : 'tree-deciduous')" class="tab-icon"></i>
+                            <i :data-lucide="index === 5 ? 'bar-chart-2' : index === 6 ? 'database' : index === 7 ? 'share-2' : index === 8 ? 'table' : (index >= 3 ? 'columns' : 'tree-deciduous')" class="tab-icon"></i>
                             <span>{{ title }}</span>
                         </div>
                     </div>
@@ -308,6 +378,10 @@ import QueryTree from './querytree.vue';
 import QueryInput from './QueryInput.vue';
 import ObjectViewer from './ObjectViewer.vue';
 import StatisticsDashboard from './StatisticsDashboard.vue';
+import GraphInfoPanel from './GraphInfoPanel.vue';
+import GraphSchemaPath from './GraphSchemaPath.vue';
+import ResultsTable from './ResultsTable.vue';
+import PathObjectViewer from './PathObjectViewer.vue';
 import { api } from '../services/api';
 
 const props = defineProps(['session', 'theme']);
@@ -317,10 +391,240 @@ const queryInput = ref('   ');
 const isLoading = ref(false);
 
 const activeCardIndex = ref(0);
-const cardTitles = ['Raw Logical Tree', 'Optimized Logical Tree', 'Physical Tree', 'Raw vs Optimized', 'Optimized vs Physical', 'Statistics'];
+const cardTitles = ['Raw Logical Tree', 'Optimized Logical Tree', 'Physical Tree', 'Raw vs Optimized', 'Optimized vs Physical', 'Statistics', 'Graph Info', 'Schema', 'Results Table'];
+
+// ─── Dynamic Schema Data ───────────────────────────────────
+const SCHEMA_DATA = ref({
+  nodeCount: 0,
+  edgeCount: 0,
+  edgeCountByLabel: {},
+  nodeSchema: {},
+  edgeSchema: {},
+  edgeConnections: {}
+});
+
+const COLOR_PALETTE_SCHEMA = ['#22c55e'];
+
+const schemaLabelColors = computed(() => {
+  const labels = Object.keys(SCHEMA_DATA.value.nodeSchema || {});
+  const map = {};
+  labels.forEach((label, index) => { map[label] = COLOR_PALETTE_SCHEMA[index % COLOR_PALETTE_SCHEMA.length]; });
+  return map;
+});
+
+const graphInfo = computed(() => {
+  const s = SCHEMA_DATA.value;
+  const nodeTypes = s.nodeSchema
+    ? Object.entries(s.nodeSchema).map(([label, properties]) => ({ label, count: null, properties }))
+    : [];
+  const edgeTypes = s.edgeSchema
+    ? Object.entries(s.edgeSchema).map(([label, properties]) => ({ label, count: s.edgeCountByLabel?.[label] ?? null, properties }))
+    : [];
+  return {
+    statistics: { totalNodes: s.nodeCount ?? 0, totalEdges: s.edgeCount ?? 0 },
+    schema: { nodeTypes, edgeTypes }
+  };
+});
+
+// Results table data: derived from the root node's apiResults 
+const resultsTableData = computed(() => {
+  const tree = logicalTreeData.value;
+  if (!tree || !tree.nodes || tree.nodes.length === 0) return { headers: [], rows: [], data: [] };
+  const rootNode = tree.nodes.find(n => !tree.edges.some(e => e.to === n.id));
+  if (!rootNode || !rootNode.apiResults) return { headers: [], rows: [], data: [] };
+  const res = rootNode.apiResults;
+  if (!res.data || res.data.length === 0) return { headers: [], rows: [], data: [] };
+  return {
+    headers: res.data[0]?.content || [],
+    rows: res.data.slice(1).map(item => item.content),
+    data: res.data.slice(1)
+  };
+});
+
+const selectedGraphInfoSequence = ref([]);
+
+const handleGraphInfoNodeClick = (nodeObject) => {
+  const schemaProps = nodeObject.schemaProps || (nodeObject.properties && nodeObject.properties.Properties ? Object.keys(nodeObject.properties.Properties) : []);
+  const segment = {
+    ...nodeObject,
+    type: 'node',
+    schemaProps,
+    schemaEdges: nodeObject.schemaEdges
+  };
+  selectedGraphInfoSequence.value = [segment];
+};
+
+const handleGraphInfoEdgeClick = (edgeObject) => {
+  const schemaProps = edgeObject.schemaProps || (edgeObject.properties && Object.keys(edgeObject.properties).filter(k => !['Label', 'Edge Type', 'Count', 'Properties'].includes(k)));
+  const segment = {
+    ...edgeObject,
+    type: 'edge',
+    schemaProps,
+    schemaConnections: edgeObject.schemaConnections
+  };
+  selectedGraphInfoSequence.value = [segment];
+};
+
+const handleSchemaNavigate = ({ type, label }) => {
+  if (type === 'node') {
+    const propsObject = SCHEMA_DATA.value.nodeSchema[label] || {};
+    
+    // Calculate edges for this node to pass to handleGraphInfoNodeClick
+    const outgoing = [];
+    const incoming = [];
+    for (const [edgeLabel, conns] of Object.entries(SCHEMA_DATA.value.edgeConnections || {})) {
+      conns.forEach((c) => {
+        if (c.srcLabel === label) outgoing.push({ edgeLabel, otherLabel: c.dstLabel });
+        if (c.dstLabel === label) incoming.push({ edgeLabel, otherLabel: c.srcLabel });
+      });
+    }
+    
+    handleGraphInfoNodeClick({
+      type: 'Node',
+      id: label.toLowerCase(),
+      label: label,
+      properties: {
+        Label: label,
+        Color: schemaLabelColors.value[label] || '#6B7280',
+        'Property Count': Object.keys(propsObject).length,
+        Properties: propsObject
+      },
+      schemaEdges: { outgoing, incoming },
+      schemaProps: Object.keys(propsObject)
+    });
+  } else if (type === 'edge') {
+    const propsObject = SCHEMA_DATA.value.edgeSchema[label] || {};
+    
+    // Calculate connections
+    const conns = SCHEMA_DATA.value.edgeConnections[label] || [];
+    const srcMap = new Map();
+    const dstMap = new Map();
+    conns.forEach(c => {
+      srcMap.set(c.srcLabel, (srcMap.get(c.srcLabel) || 0) + 1);
+      dstMap.set(c.dstLabel, (dstMap.get(c.dstLabel) || 0) + 1);
+    });
+    const sources = Array.from(srcMap, ([nodeLabel, totalCount]) => ({ nodeLabel, totalCount }));
+    const targets = Array.from(dstMap, ([nodeLabel, totalCount]) => ({ nodeLabel, totalCount }));
+    
+    const count = SCHEMA_DATA.value.edgeCountByLabel[label] || 0;
+    const formattedCount = count >= 1000000 ? (count / 1000000).toFixed(1) + 'M' : count >= 1000 ? (count / 1000).toFixed(1) + 'K' : count.toString();
+    
+    handleGraphInfoEdgeClick({
+      type: 'Edge',
+      id: label.toLowerCase(),
+      label: label,
+      properties: {
+        Label: label,
+        'Edge Type': label,
+        Count: formattedCount,
+        'Property Count': Object.keys(propsObject).length,
+        Properties: propsObject
+      },
+      schemaConnections: { sources, targets },
+      schemaProps: Object.keys(propsObject)
+    });
+  }
+};
+
+watch(() => props.session, async (newSession) => {
+  if (newSession && newSession.loginToken && newSession.sessionToken) {
+    try {
+      const response = await api.fetchSchema(newSession.loginToken, newSession.sessionToken);
+      
+      let totalNodes = 0;
+      let nodeMap = {};
+      try {
+        const nodesRes = await api.search({ type: 'node', limit: 999999, loginToken: newSession.loginToken, sessionToken: newSession.sessionToken });
+        console.log("Search Nodes Response:", nodesRes);
+        if (nodesRes && nodesRes.success && nodesRes.data) {
+          totalNodes = nodesRes.data.length;
+          nodesRes.data.forEach(item => {
+            let n = typeof item === 'string' ? parseBackendString(item) : item;
+            if (n && n.id && n.label) nodeMap[n.id] = n.label;
+          });
+        }
+      } catch (e) { console.error('Failed to fetch total nodes', e); }
+
+      let totalEdges = 0;
+      let edgeConnectionsObj = {};
+      let edgeCountByLabelObj = {};
+      
+      try {
+        const edgesRes = await api.search({ type: 'edge', limit: 999999, loginToken: newSession.loginToken, sessionToken: newSession.sessionToken });
+        console.log("Search Edges Response:", edgesRes);
+        if (edgesRes && edgesRes.success && edgesRes.data) {
+          totalEdges = edgesRes.data.length;
+          edgesRes.data.forEach(item => {
+            let e = typeof item === 'string' ? parseBackendString(item) : item;
+            if (e && e.label) {
+              edgeCountByLabelObj[e.label] = (edgeCountByLabelObj[e.label] || 0) + 1;
+              if (e.source && e.target) {
+                const srcLabel = nodeMap[e.source] || 'Unknown';
+                const dstLabel = nodeMap[e.target] || 'Unknown';
+                if (!edgeConnectionsObj[e.label]) {
+                  edgeConnectionsObj[e.label] = [];
+                }
+                const exists = edgeConnectionsObj[e.label].some(c => c.srcLabel === srcLabel && c.dstLabel === dstLabel);
+                if (!exists) {
+                  edgeConnectionsObj[e.label].push({ srcLabel, dstLabel });
+                }
+              }
+            }
+          });
+        }
+      } catch (e) { console.error('Failed to fetch total edges', e); }
+
+      if (response && response.success) {
+        // Support response.graphInfo wrapper if present
+        const dbSchema = response.graphInfo || response;
+        
+        const nodeSchemaObj = {};
+        if (dbSchema.nodeSchema && Array.isArray(dbSchema.nodeSchema)) {
+          dbSchema.nodeSchema.forEach(node => {
+            if (node.label) nodeSchemaObj[node.label] = node.properties || {};
+          });
+        }
+        
+        const edgeSchemaObj = {};
+        if (dbSchema.edgeSchema && Array.isArray(dbSchema.edgeSchema)) {
+          dbSchema.edgeSchema.forEach(edge => {
+            if (edge.label) {
+              edgeSchemaObj[edge.label] = edge.properties || {};
+              // Extract connections from schema if the backend provides them
+              const src = edge.source || edge.srcLabel || edge.src;
+              const dst = edge.target || edge.dstLabel || edge.dst;
+              if (src && dst) {
+                if (!edgeConnectionsObj[edge.label]) edgeConnectionsObj[edge.label] = [];
+                const exists = edgeConnectionsObj[edge.label].some(c => c.srcLabel === src && c.dstLabel === dst);
+                if (!exists) {
+                  edgeConnectionsObj[edge.label].push({ srcLabel: src, dstLabel: dst });
+                }
+              }
+            }
+          });
+        }
+
+        SCHEMA_DATA.value = {
+          nodeCount: totalNodes,
+          edgeCount: totalEdges,
+          edgeCountByLabel: response.edgeCountByLabel || edgeCountByLabelObj,
+          nodeSchema: nodeSchemaObj,
+          edgeSchema: edgeSchemaObj,
+          edgeConnections: response.edgeConnections || edgeConnectionsObj
+        };
+      }
+    } catch (e) {
+      console.error('Failed to fetch dynamic schema:', e);
+    }
+  } else {
+    SCHEMA_DATA.value = { nodeCount: 0, edgeCount: 0, edgeCountByLabel: {}, nodeSchema: {}, edgeSchema: {}, edgeConnections: {} };
+  }
+}, { immediate: true });
+
+// ─── End Schema Data ─────────────────────────────────────────
 
 const logicalTreeData = ref(null);
-const optimizedTreeData = ref(null); // Mocked for now
+const optimizedTreeData = ref(null); 
 const physicalTreeData = ref(null);
 
 const activeTreeData = computed(() => {
@@ -353,8 +657,12 @@ const setTreeRef = (el, index) => {
     if (el) treeRefs.value[index] = el;
 };
 
-// Re-center tree when switching tabs to prevent decentralization bug
+
 watch(activeCardIndex, (newIdx) => {
+    // Clear any active object viewer sequences on tab switch
+    selectedGraphInfoSequence.value = [];
+    selectedTableSequence.value = [];
+
     if (newIdx === 3) {
         nextTick(() => {
             const t40 = treeRefs.value[40];
@@ -401,6 +709,14 @@ const expandedSegments = ref({});
 const expandedRow = ref(null);
 const selectedTablePath = ref(null);
 const selectedPathElement = ref(null);
+const selectedTableSequence = ref([]);
+
+const handleTableOpenSequence = (segments) => {
+    selectedTableSequence.value = JSON.parse(JSON.stringify(segments));
+    nextTick(() => {
+        if (window.lucide) window.lucide.createIcons();
+    });
+};
 
 // Stats Modal logic
 const showStatsModal = ref(false);
@@ -653,11 +969,13 @@ const isResizing = ref(false);
 const isSequenceModalOpen = ref(false);
 const selectedSequence = ref([]);
 
-const openSequenceModal = async (segments) => {
+const openSequenceModal = async (segments, openAsModal = true) => {
     // Deep clone to safely update properties without affecting other components prematurely
     const clonedSegments = JSON.parse(JSON.stringify(segments));
     selectedSequence.value = clonedSegments;
-    isSequenceModalOpen.value = true;
+    if(openAsModal) {
+        isSequenceModalOpen.value = true;
+    }
     
     nextTick(() => {
         if (window.lucide) window.lucide.createIcons();
@@ -2074,7 +2392,7 @@ const transformLogicalPlan = (plan, query = "") => {
             const childId = idCounter++;
             nodes.push({
                 id: childId,
-                label: "Paths₁(G)",
+                label: "<b>Paths₁(G)</b>",
                 color: { background: "#ffffff" },
                 properties: { Name: "Paths₁(G)", Details: "Base Relation" }
             });
@@ -2198,7 +2516,7 @@ const transformLogicalPlan = (plan, query = "") => {
                 color = "#ffffff";
                 label = `<b>∪</b> <code>${queryRestrictor}</code>`;
             } else if (lowName === 'allnodes') {
-                label = "Paths₀(G)";
+                label = "<b>Paths₀(G)</b>";
             }
         }
         

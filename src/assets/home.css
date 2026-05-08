@@ -2603,3 +2603,19 @@
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
+
+
+/* ─── New Tabs: Graph Info, Results Table, Schema ─── */
+.new-tab-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+}
+
+.schema-vis-content {
+    min-height: 500px;
+    height: calc(100vh - 250px);
+}
