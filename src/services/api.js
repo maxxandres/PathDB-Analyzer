@@ -123,12 +123,16 @@ export const api = {
      * Fetches the dynamic database schema.
      */
     async fetchSchema(loginToken, sessionToken) {
+        console.log('[PathDB API] fetchSchema: Initiating request to POST /database/schema...');
+        const startTime = performance.now();
         const response = await fetch(`${API_BASE_URL}/database/schema`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify({ loginToken, sessionToken })
         });
         const result = await response.json();
+        const duration = (performance.now() - startTime).toFixed(2);
+        console.log(`[PathDB API] fetchSchema: Request finished in ${duration} ms. Response success:`, result.success);
         if (!result.success) throw new Error(result.message || 'Failed to fetch schema');
         return result;
     },

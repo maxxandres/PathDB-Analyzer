@@ -321,7 +321,7 @@ const formatNodeButtonLabel = (node) => {
 
 
         <!-- Results Table -->
-        <div v-if="currentNodeData.rows" style="margin-top: 1.5rem;">
+        <div v-if="false" style="margin-top: 1.5rem;">
           <div v-if="currentNodeData.rows && currentNodeData.rows.length > 0" class="path-results-container">
             <div class="results-header-wrapper" style="display: flex; justify-content: space-between; align-items: center;">
               <h3 class="data-title" style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">

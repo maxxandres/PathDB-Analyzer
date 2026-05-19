@@ -232,26 +232,18 @@
 
                                         <div class="sequence-properties mt-2"
                                             v-if="segment.properties && Object.keys(segment.properties).filter(k => !['id', 'label', 'type', 'source', 'target'].includes(k)).length > 0">
-                                            <template v-for="(val, key, idx) in segment.properties" :key="key">
-                                                <div v-if="!['id', 'label', 'type', 'source', 'target'].includes(key)
-                                                         && (expandedCards[segmentIdx] || idx < 4)"
-                                                     class="sequence-kv">
+                                            <template v-for="(val, key) in segment.properties" :key="key">
+                                                <div v-if="!['id', 'label', 'type', 'source', 'target'].includes(key)"
+                                                      class="sequence-kv">
                                                     <span class="prop-key">{{ key }}:</span>
                                                     <span
-                                                        class="prop-val"
-                                                        :class="expandedProps[segmentIdx + '-' + key] ? 'seq-prop-val-full' : 'seq-prop-val'"
-                                                        :title="!expandedProps[segmentIdx + '-' + key] ? String(val) : ''"
-                                                        @click="expandedProps[segmentIdx + '-' + key] = !expandedProps[segmentIdx + '-' + key]"
+                                                         class="prop-val"
+                                                         :class="expandedProps[segmentIdx + '-' + key] ? 'seq-prop-val-full' : 'seq-prop-val'"
+                                                         :title="!expandedProps[segmentIdx + '-' + key] ? String(val) : ''"
+                                                         @click="expandedProps[segmentIdx + '-' + key] = !expandedProps[segmentIdx + '-' + key]"
                                                     >{{ val }}</span>
                                                 </div>
                                             </template>
-                                            <!-- Expand / Collapse toggle -->
-                                            <button
-                                                v-if="Object.keys(segment.properties).filter(k => !['id', 'label', 'type', 'source', 'target'].includes(k)).length > 4"
-                                                class="seq-expand-btn"
-                                                @click="expandedCards[segmentIdx] = !expandedCards[segmentIdx]">
-                                                {{ expandedCards[segmentIdx] ? '▲ Show less' : '▼ Show more (' + (Object.keys(segment.properties).filter(k => !['id','label','type','source','target'].includes(k)).length - 4) + ' more)' }}
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -680,12 +672,18 @@ const loadSchema = async (session) => {
     return;
   }
   const { loginToken, sessionToken } = session;
+  console.log('[PathDB] loadSchema: Triggered (Calling api.fetchSchema in src/services/api.js)...');
+  
   try {
+    const backendStart = performance.now();
     console.time('[PathDB] loadSchema (backend)');
     const response = await api.fetchSchema(loginToken, sessionToken);
     console.timeEnd('[PathDB] loadSchema (backend)');
+    const backendDuration = performance.now() - backendStart;
 
+    const frontendStart = performance.now();
     console.time('[PathDB] loadSchema (frontend parsing)');
+    
     if (response && response.success) {
       const dbSchema = response.graphInfo || response;
       
@@ -725,7 +723,41 @@ const loadSchema = async (session) => {
         edgeConnections: response.edgeConnections || dbSchema.edgeConnections || edgeConnectionsObj
       };
     }
+    
     console.timeEnd('[PathDB] loadSchema (frontend parsing)');
+    const frontendDuration = performance.now() - frontendStart;
+
+    // Detailed Debugging Group
+    console.groupCollapsed(`%c[PathDB] loadSchema details %c(Backend: ${backendDuration.toFixed(1)}ms | Frontend: ${frontendDuration.toFixed(1)}ms)`, 'font-weight: bold; color: #3b82f6;', 'font-weight: normal; color: #6b7280;');
+    console.log('API Mapping:');
+    console.log('  - Frontend trigger: loadSchema() in src/components/home.vue');
+    console.log('  - Backend API: api.fetchSchema() in src/services/api.js calling POST /api/v1/database/schema');
+    console.log('\nDetailed timing:');
+    console.log(`  - Backend fetch: ${backendDuration.toFixed(2)} ms`);
+    console.log(`  - Frontend parsing: ${frontendDuration.toFixed(2)} ms`);
+    
+    console.log('\nSchema summary counts:');
+    console.log(`  - Total Node Count: ${SCHEMA_DATA.value.nodeCount}`);
+    console.log(`  - Total Edge Count: ${SCHEMA_DATA.value.edgeCount}`);
+    console.log(`  - Node Labels Found (${Object.keys(SCHEMA_DATA.value.nodeSchema).length}):`, Object.keys(SCHEMA_DATA.value.nodeSchema));
+    console.log(`  - Edge Labels Found (${Object.keys(SCHEMA_DATA.value.edgeSchema).length}):`, Object.keys(SCHEMA_DATA.value.edgeSchema));
+    
+    console.log('\nNode/Edge Count Breakdown (Calculated by Backend):');
+    console.log('  - Node counts by label:', SCHEMA_DATA.value.nodeCountByLabel);
+    console.log('  - Edge counts by label:', SCHEMA_DATA.value.edgeCountByLabel);
+    
+    console.log('\nParsed Schema Structures:');
+    console.log('  - Node schemas:', SCHEMA_DATA.value.nodeSchema);
+    console.log('  - Edge schemas:', SCHEMA_DATA.value.edgeSchema);
+    console.log('  - Edge connections:', SCHEMA_DATA.value.edgeConnections);
+    
+    if (backendDuration > 1000) {
+      console.warn(`%c[PathDB Performance Warning]%c The backend fetchSchema took ${backendDuration.toFixed(2)}ms.\n` + 
+                   `This long duration strongly suggests that the backend endpoint POST /api/v1/database/schema is performing full scans/counts on all node/edge types. ` + 
+                   `If this is a large database, these count queries are extremely expensive. Check the breakdown above to see which labels contain the most nodes/edges.`, 
+                   'font-weight: bold; color: #eab308;', 'font-weight: normal;');
+    }
+    console.groupEnd();
   } catch (e) {
     console.error('Failed to fetch dynamic schema:', e);
   }
@@ -855,12 +887,48 @@ const handleTableCellSelect = (segments) => {
     });
 };
 
+// Extract path segments from a row item's cells or direct properties in multi-variable outputs
+const getRowPathSegments = (item) => {
+    if (!item) return null;
+    
+    if (Array.isArray(item.segments) && item.segments.length > 0) {
+        return item.segments;
+    }
+    
+    if (Array.isArray(item.content)) {
+        for (const cell of item.content) {
+            if (!cell) continue;
+            
+            let parsedObj = null;
+            if (typeof cell === 'object') {
+                parsedObj = cell;
+            } else if (typeof cell === 'string' && (cell.trim().startsWith('{') || cell.trim().startsWith('['))) {
+                try { parsedObj = JSON.parse(cell.trim()); } catch(e) {}
+            }
+            
+            if (parsedObj) {
+                const rawSegs = parsedObj.content || parsedObj.segments || (Array.isArray(parsedObj) ? parsedObj : null);
+                if (Array.isArray(rawSegs)) {
+                    return rawSegs.map(seg => {
+                        if (seg.source || seg.target || seg.dir) {
+                            return { type: 'edge', label: seg.label, id: seg.id, direction: seg.dir === 'T' || seg.dir === true ? '->' : '<-', properties: seg };
+                        }
+                        return { type: 'node', label: seg.label, id: seg.id, properties: seg };
+                    });
+                }
+            }
+        }
+    }
+    
+    return null;
+};
+
 // When a path cell is clicked, open the sequence modal pop-up
 const handleTablePathSequence = (segments) => {
     // Collect all path sequences from the results table for navigation
     const data = resultsTableData.value?.data || [];
     const allPaths = data
-        .map(item => item?.segments)
+        .map(item => getRowPathSegments(item))
         .filter(s => Array.isArray(s) && s.length > 0);
     openSequenceModal(segments, true, allPaths.length > 1 ? allPaths : null);
 };
@@ -1297,92 +1365,50 @@ const triggerExport = () => {
 // Dynamic query presets based on loaded schema
 const presets = computed(() => {
     const edgeLabels = Object.keys(SCHEMA_DATA.value?.edgeSchema || {});
-    const nodeSchema = SCHEMA_DATA.value?.nodeSchema || {};
 
-    // If no schema loaded yet, return static defaults
-    if (edgeLabels.length === 0) {
+    // ─── Default Database (Static Presets) ───────────────────────────
+    if (selectedDb.value === 'default' || edgeLabels.length === 0) {
         return [
-            { label: 'Transitive Closure', query: 'MATCH TRAIL p = (x)-[(Edge+)]->(y) RETURN p;' },
-            { label: 'Kleene Query', query: 'MATCH TRAIL p = (x)-[(Edge*)]->(y) RETURN p;' },
+            { label: "Join Query", query: 'MATCH TRAIL p = (x)-[(Knows.Likes)]->(y) where x.name = "Moe" RETURN y.txt;' },
+            { label: "Union Query", query: 'MATCH TRAIL p = (x)-[(Knows|Likes)]->(y) where x.name = "Moe" RETURN y.name,y.txt;' },
+            { label: "Transitive Closure Query", query: 'MATCH TRAIL p = (x)-[(Knows+)]-> (y) RETURN p;'},
+            { label: "Kleene Query", query:'MATCH TRAIL p = (x)-[(Knows*)]-> (y) RETURN p;'},  
+            { label: "Complex Query 1 ", query: 'MATCH TRAIL p = (x)-[((Likes.HasCreator)+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3'},
+            { label: "Complex Query 2 ", query: 'MATCH TRAIL p = (x)-[((Knows+.Likes))]->(y) WHERE x.name = "Moe" RETURN y.txt;'}
         ];
     }
 
+    // ─── Custom Databases (Dynamically Aligned Presets) ──────────────
     const e1 = edgeLabels[0];
     const e2 = edgeLabels.length > 1 ? edgeLabels[1] : e1;
+    const e3 = edgeLabels.length > 2 ? edgeLabels[2] : e2;
 
-    // Find a suitable string property for WHERE (prefer "name", "firstName", etc.)
-    let whereProp = null;
-    const preferredNames = ['name', 'firstName', 'lastname', 'title', 'username', 'email'];
-    outer:
-    for (const [label, props] of Object.entries(nodeSchema)) {
-        for (const pName of preferredNames) {
-            const match = Object.keys(props).find(k => k.toLowerCase() === pName.toLowerCase());
-            if (match) {
-                whereProp = match;
-                break outer;
-            }
+    return [
+        { 
+            label: "Join Query", 
+            query: `MATCH TRAIL p = (x)-[(${e1}.${e2})]->(y) where x.name = "Moe" RETURN y.txt;` 
+        },
+        { 
+            label: "Union Query", 
+            query: `MATCH TRAIL p = (x)-[(${e1}|${e2})]->(y) where x.name = "Moe" RETURN y.name,y.txt;` 
+        },
+        { 
+            label: "Transitive Closure Query", 
+            query: `MATCH TRAIL p = (x)-[(${e1}+)]-> (y) RETURN p;` 
+        },
+        { 
+            label: "Kleene Query", 
+            query: `MATCH TRAIL p = (x)-[(${e1}*)]-> (y) RETURN p;` 
+        },
+        { 
+            label: "Complex Query 1 ", 
+            query: `MATCH TRAIL p = (x)-[((${e2}.${e3})+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3` 
+        },
+        { 
+            label: "Complex Query 2 ", 
+            query: `MATCH TRAIL p = (x)-[((${e1}+.${e2}))]->(y) WHERE x.name = "Moe" RETURN y.txt;` 
         }
-    }
-    // Fallback: pick any String property
-    if (!whereProp) {
-        for (const [label, props] of Object.entries(nodeSchema)) {
-            for (const [prop, type] of Object.entries(props)) {
-                if (String(type).toLowerCase().includes('string') && prop !== 'id') {
-                    whereProp = prop;
-                    break;
-                }
-            }
-            if (whereProp) break;
-        }
-    }
-
-    const results = [];
-
-    // Join: e1.e2
-    if (edgeLabels.length >= 2) {
-        results.push({
-            label: 'Join Query',
-            query: `MATCH TRAIL p = (x)-[(${e1}.${e2})]->(y) RETURN p;`
-        });
-    }
-
-    // Union: e1|e2
-    if (edgeLabels.length >= 2) {
-        results.push({
-            label: 'Union Query',
-            query: `MATCH TRAIL p = (x)-[(${e1}|${e2})]->(y) RETURN p;`
-        });
-    }
-
-    // Transitive Closure
-    results.push({
-        label: 'Transitive Closure',
-        query: `MATCH TRAIL p = (x)-[(${e1}+)]->(y) RETURN p;`
-    });
-
-    // Kleene
-    results.push({
-        label: 'Kleene Query',
-        query: `MATCH TRAIL p = (x)-[(${e1}*)]->(y) RETURN p;`
-    });
-
-    // Complex: (e1.e2)+
-    if (edgeLabels.length >= 2) {
-        results.push({
-            label: 'Complex Query',
-            query: `MATCH TRAIL p = (x)-[((${e1}.${e2})+)]->(y) RETURN p LIMIT 10;`
-        });
-    }
-
-    // Filtered: with WHERE (placeholder value)
-    if (whereProp) {
-        results.push({
-            label: 'Filtered Query',
-            query: `MATCH TRAIL p = (x)-[(${e1}+)]->(y) WHERE x.${whereProp} = "..." RETURN p LIMIT 5;`
-        });
-    }
-
-    return results;
+    ];
 });
 
 const selectPreset = (preset) => {

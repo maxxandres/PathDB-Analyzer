@@ -89,7 +89,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
   tableData: { type: Object, default: () => ({ headers: [], rows: [], data: [] }) }
@@ -340,6 +340,49 @@ function handleCellClick(cell, header, rowIdx, colIdx, row) {
   };
   emit('cell-select', [segment]);
 }
+
+const handleTableKeydown = (e) => {
+  // Prevent keydown navigation if sequence modal is open
+  if (document.querySelector('.sequence-modal-overlay')) return;
+
+  // Bail out if the user is typing inside any input / textarea / contenteditable
+  const tag = document.activeElement?.tagName;
+  const isEditable = document.activeElement?.isContentEditable;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || isEditable) return;
+
+  if (selectedRowIdx.value === null || selectedColIdx.value === null) return;
+  
+  let newRow = selectedRowIdx.value;
+  let newCol = selectedColIdx.value;
+  
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (newRow > 0) newRow--;
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (newRow < filteredRows.value.length - 1) newRow++;
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    if (newCol > 0) newCol--;
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    if (newCol < headers.value.length - 1) newCol++;
+  } else {
+    return;
+  }
+  
+  // Trigger cell click to select and update active cards/viewer
+  const cell = filteredRows.value[newRow][newCol];
+  handleCellClick(cell, headers.value[newCol], newRow, newCol, filteredRows.value[newRow]);
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleTableKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleTableKeydown);
+});
 </script>
 
 <style scoped>
