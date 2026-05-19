@@ -1,18 +1,15 @@
 <template>
-  <div class="card path-viewer-card">
+  <div class="path-viewer-card">
     <div class="card-title">
       <span class="ov-crumb-root">ObjectViewer</span>
       <span class="ov-crumb-sep">›</span>
       <span class="ov-crumb-leaf">{{ viewerTitle }}</span>
+      <button class="expand-all-btn" @click="toggleExpandAll">
+        {{ allExpanded ? 'Collapse all' : 'Expand all' }}
+      </button>
     </div>
 
     <div v-if="sequence && sequence.length > 0" class="graph-info path-viewer">
-      <div class="path-viewer-header">
-        <span class="path-viewer-title" aria-hidden="true"></span>
-        <button class="expand-all-btn" @click="toggleExpandAll">
-          {{ allExpanded ? 'Collapse all' : 'Expand all' }}
-        </button>
-      </div>
 
       <transition-group name="pathcard" tag="div" class="path-elements-list">
         <div
@@ -21,7 +18,7 @@
           class="path-element-wrapper"
         >
           <!-- NODE CARD -->
-          <div v-if="element.type === 'node'" class="path-element-card is-node">
+          <div v-if="element.type === 'node'" class="path-element-card is-node" style="width: 75%;">
             <div class="element-header">
               <span class="element-icon">●</span>
               <span class="element-type" v-if="mode === 'schema'">{{ String(element.label).toUpperCase() }}</span>
@@ -31,7 +28,7 @@
               </button>
             </div>
             <transition name="details">
-              <div v-if="isExpanded(index)">
+              <div v-if="isExpanded(index)" class="details-content">
                 <div v-if="mode === 'schema'" class="schema-properties-list">
                   <div v-for="prop in element.schemaProps" :key="prop" class="schema-prop-row">
                     <span class="schema-prop-key">{{ prop }}:</span>
@@ -41,7 +38,6 @@
                   </div>
                   
                   <div v-if="element.schemaEdges" class="schema-edges-section">
-                    <div class="schema-edges-divider"></div>
                     <div v-if="element.schemaEdges.outgoing && element.schemaEdges.outgoing.length > 0" class="schema-edges-block">
                       <div class="schema-edges-title">OUTGOING EDGES</div>
                       <div class="schema-edges-badges">
@@ -50,7 +46,10 @@
                         </span>
                       </div>
                     </div>
-                    <div v-if="element.schemaEdges.incoming && element.schemaEdges.incoming.length > 0" class="schema-edges-block mt-2">
+
+                    <div v-if="element.schemaEdges.outgoing && element.schemaEdges.outgoing.length > 0 && element.schemaEdges.incoming && element.schemaEdges.incoming.length > 0" class="schema-edges-divider"></div>
+
+                    <div v-if="element.schemaEdges.incoming && element.schemaEdges.incoming.length > 0" class="schema-edges-block">
                       <div class="schema-edges-title">INCOMING EDGES</div>
                       <div class="schema-edges-badges">
                         <span v-for="edge in element.schemaEdges.incoming" :key="'in-'+edge.edgeLabel" class="schema-edge-badge is-clickable" @click.stop="$emit('navigate', { type: 'edge', label: edge.edgeLabel })">
@@ -58,6 +57,14 @@
                         </span>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Result cell data with schemaProps (from Query Results table) -->
+                <div v-else-if="element.schemaProps && element.schemaProps.length > 0" class="schema-properties-list">
+                  <div v-for="prop in element.schemaProps" :key="prop" class="schema-prop-row">
+                    <span class="schema-prop-key">{{ prop }}:</span>
+                    <span class="schema-prop-type">{{ element.properties?.[prop] ?? '' }}</span>
                   </div>
                 </div>
 
@@ -85,7 +92,7 @@
             </div>
             
             <transition name="details">
-              <div v-if="isExpanded(index)">
+              <div v-if="isExpanded(index)" class="details-content">
                 <div v-if="mode === 'schema'" class="schema-properties-list">
                   <div v-for="prop in element.schemaProps" :key="prop" class="schema-prop-row">
                     <span class="schema-prop-key">{{ prop }}:</span>
@@ -95,7 +102,6 @@
                   </div>
 
                   <div v-if="element.schemaConnections" class="schema-edges-section">
-                    <div class="schema-edges-divider"></div>
                     <div v-if="element.schemaConnections.sources && element.schemaConnections.sources.length > 0" class="schema-edges-block">
                       <div class="schema-edges-title">SOURCES</div>
                       <div class="schema-edges-badges">
@@ -104,7 +110,10 @@
                         </span>
                       </div>
                     </div>
-                    <div v-if="element.schemaConnections.targets && element.schemaConnections.targets.length > 0" class="schema-edges-block mt-2">
+
+                    <div v-if="element.schemaConnections.sources && element.schemaConnections.sources.length > 0 && element.schemaConnections.targets && element.schemaConnections.targets.length > 0" class="schema-edges-divider"></div>
+
+                    <div v-if="element.schemaConnections.targets && element.schemaConnections.targets.length > 0" class="schema-edges-block">
                       <div class="schema-edges-title">TARGETS</div>
                       <div class="schema-edges-badges">
                         <span v-for="tgt in element.schemaConnections.targets" :key="'tgt-'+tgt.nodeLabel" class="schema-edge-badge is-node-badge is-clickable" @click.stop="$emit('navigate', { type: 'node', label: tgt.nodeLabel })">
@@ -166,6 +175,11 @@ const viewerTitle = computed(() => {
     }
     return 'Schema Viewer';
   }
+  // For results table cell selections, show the selected column/element
+  if (props.sequence && props.sequence.length === 1 && props.sequence[0].schemaProps) {
+    const el = props.sequence[0];
+    return `${el.label} : ${el.id}`;
+  }
   return 'Path Summary';
 });
 
@@ -174,11 +188,12 @@ const expandedElements = ref({});
 const expandedProps = ref({});
 
 watch(() => props.sequence, (newSeq) => {
-  // Initialize all elements to be expanded if allExpanded is true
+  // Initialize elements to be expanded based on mode or allExpanded state
   const newExpandedElements = {};
   if (newSeq) {
-    newSeq.forEach((_, i) => {
-      newExpandedElements[i] = allExpanded.value;
+    newSeq.forEach((el, i) => {
+      // Auto-expand in schema mode, or when element has schemaProps (result cell selections)
+      newExpandedElements[i] = props.mode === 'schema' || el?.schemaProps ? true : allExpanded.value;
     });
   }
   expandedElements.value = newExpandedElements;
@@ -236,16 +251,22 @@ function togglePropExpand(index, key) {
   flex-direction: column;
   background: white;
   height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .card-title {
-  padding: 14px 18px;
+  padding: 0 18px;
+  min-height: 49px;
   font-weight: 700;
   font-size: 16px;
   color: #1F2937;
   border-bottom: 2px solid #E5E7EB;
   background: #F9FAFB;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 12px 12px 0 0;
 }
 
 .ov-crumb-root { color: #111827; }
@@ -276,11 +297,15 @@ function togglePropExpand(index, key) {
   justify-content: center;
 }
 
-.path-viewer-header {
+.empty-viewer {
+  color: #888;
+  text-align: center;
+  font-size: 16px;
+  margin-top: 20px;
+  font-style: italic;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  justify-content: center;
 }
 
 .expand-all-btn {
@@ -307,7 +332,7 @@ function togglePropExpand(index, key) {
 .path-element-card {
   background: white;
   border-radius: 12px;
-  padding: 16px;
+  padding: 8px 16px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   border: 2px solid transparent;
 }
@@ -315,20 +340,25 @@ function togglePropExpand(index, key) {
 .path-element-card.is-node {
   border-color: #00897B;
   background: #b8f4f1;
+  width: 75%;
 }
 
 .path-element-card.is-edge {
   border-color: #1976D2;
   background: #a9d8f9;
-  width: 90%;
-  margin-left: 5%;
+  width: 50%;
+  margin-left: 0;
 }
 
 .element-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-bottom: 8px;
+  padding-bottom: 0;
+}
+
+.details-content {
+  padding-top: 8px;
 }
 
 .is-node .element-icon { color: #00897B; font-size: 24px; }
@@ -508,8 +538,8 @@ function togglePropExpand(index, key) {
 }
 
 .schema-edges-divider {
-  border-top: 1px dashed #D1D5DB;
-  margin-bottom: 12px;
+  border-bottom: 1px solid #9CA3AF; /* Match .schema-prop-row */
+  margin: 12px 0 16px 0;
 }
 
 .schema-edges-title {

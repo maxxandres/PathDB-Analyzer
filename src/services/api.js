@@ -131,5 +131,35 @@ export const api = {
         const result = await response.json();
         if (!result.success) throw new Error(result.message || 'Failed to fetch schema');
         return result;
+    },
+
+    /**
+     * Lists all available graph databases.
+     * Note: Spec defines this as GET with body, but POST is used here for
+     * browser compatibility (some browsers block GET+body).
+     */
+    async listDatabases(loginToken, sessionToken) {
+        const response = await fetch(`${API_BASE_URL}/database/list`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ loginToken, sessionToken })
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Failed to list databases');
+        return result.data; // string[]
+    },
+
+    /**
+     * Switches the session's active graph database.
+     */
+    async useDatabase(name, loginToken, sessionToken) {
+        const response = await fetch(`${API_BASE_URL}/database/use`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ name, loginToken, sessionToken })
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Failed to switch database');
+        return result;
     }
 };

@@ -61,12 +61,12 @@
               class="rt-td"
               :class="{
                 'rt-td-selected': selectedRowIdx === rowIdx && selectedColIdx === cellIdx,
-                'rt-td-path': isPathLike(cell)
+                'rt-td-path': isCellPath(cell, cellIdx, rowIdx)
               }"
               @click="handleCellClick(cell, headers[cellIdx], rowIdx, cellIdx, row)"
               :title="String(cell)"
             >
-              <template v-if="isPathLike(cell)">
+              <template v-if="isCellPath(cell, cellIdx, rowIdx)">
                 <div class="rt-path-cell">
                   <button class="rt-see-path-btn" @click.stop="$emit('open-sequence', getSegments(cell, rowIdx))">
                     👁 See Path
@@ -74,7 +74,7 @@
                 </div>
               </template>
               <span v-else-if="!cell" class="rt-null">(null)</span>
-              <span v-else class="rt-cell-text">{{ cell }}</span>
+              <span v-else class="rt-cell-text">{{ formatCellDisplay(cell) }}</span>
             </td>
           </tr>
         </tbody>
@@ -95,7 +95,7 @@ const props = defineProps({
   tableData: { type: Object, default: () => ({ headers: [], rows: [], data: [] }) }
 });
 
-const emit = defineEmits(['cell-click', 'open-sequence']);
+const emit = defineEmits(['cell-click', 'open-sequence', 'cell-select']);
 
 const searchQuery = ref('');
 const activeFilters = ref([]);
@@ -161,6 +161,9 @@ function toggleSort(header) {
   }
 }
 
+/**
+ * Check if a cell value looks like a path based on its content alone.
+ */
 function isPathLike(cell) {
   if (!cell) return false;
   if (typeof cell === 'object' && (cell.content || cell.segments)) return true;
@@ -175,14 +178,35 @@ function isPathLike(cell) {
   return false;
 }
 
+/**
+ * Determine if a cell should display as a path (with the "See Path" button).
+ * Checks the cell content first, then falls back to checking if the row
+ * has segments AND this column is not a property column (no dot in header)
+ * AND the cell is not a node/edge object.
+ */
+function isCellPath(cell, cellIdx, rowIdx) {
+  if (isPathLike(cell)) return true;
+
+  const header = headers.value[cellIdx];
+  if (!header || header.includes('.')) return false;
+
+  const item = rawData.value[rowIdx];
+  if (!item?.segments || item.segments.length === 0) return false;
+
+  // Skip if cell is a recognized node/edge object
+  const parsed = parseCellValue(cell);
+  if (parsed && typeof parsed === 'object' && parsed.id !== undefined && parsed.label !== undefined) return false;
+
+  return true;
+}
+
 function getSegments(cell, rowIdx) {
-  // First try to parse from the cell itself if it's a path object/json
   let parsedObj = null;
   if (typeof cell === 'object') parsedObj = cell;
   else if (typeof cell === 'string' && (cell.trim().startsWith('{') || cell.trim().startsWith('['))) {
     try { parsedObj = JSON.parse(cell.trim()); } catch(e) {}
   }
-  
+
   if (parsedObj) {
     const rawSegs = parsedObj.content || parsedObj.segments || (Array.isArray(parsedObj) ? parsedObj : null);
     if (Array.isArray(rawSegs)) {
@@ -195,37 +219,126 @@ function getSegments(cell, rowIdx) {
     }
   }
 
-  // Fallback to the row's segments
   const item = rawData.value[rowIdx];
   return item?.segments || [];
 }
 
-function getPathLabel(cell, rowIdx) {
-  let id = null;
-  if (typeof cell === 'object' && cell.id) id = cell.id;
-  else if (typeof cell === 'string') {
-    try {
-      const parsed = JSON.parse(cell);
-      if (parsed && parsed.id) id = parsed.id;
-    } catch(e) {}
+/**
+ * Parse a cell value into a structured object for display.
+ */
+function parseCellValue(cell) {
+  if (cell == null) return null;
+  if (typeof cell === 'object') {
+    if (cell.id !== undefined && cell.label !== undefined) return cell;
+    return cell;
   }
-  
-  if (id) {
-     if (id.length > 8) return `Path ${id.substring(0,8)}...`;
-     return `Path ${id}`;
+  const s = String(cell).trim();
+  if (s.startsWith('{') || s.startsWith('[')) {
+    try { return JSON.parse(s); } catch(e) {}
   }
-  return `Path ${rowIdx + 1}`;
+  return null;
+}
+
+/**
+ * Format cell value for display. If it's a node/edge object, show "Label : ID".
+ */
+function formatCellDisplay(cell) {
+  if (cell == null) return '';
+  if (typeof cell === 'object' && cell.id !== undefined && cell.label !== undefined) {
+    return `${cell.label} : ${cell.id}`;
+  }
+  return String(cell);
+}
+
+/**
+ * For a header like "y.name", find the parent variable "y" column in the same row
+ * and return its cell value (which should be a node/edge object).
+ */
+function findParentVariableCell(header, row) {
+  if (!header.includes('.')) return null;
+  const varName = header.split('.')[0];
+  const varIdx = headers.value.indexOf(varName);
+  if (varIdx < 0) return null;
+  return { cell: row[varIdx], header: varName };
+}
+
+/**
+ * Build a full segment from a node/edge object, enriched with all property columns.
+ */
+function buildNodeSegment(parsed, varHeader, row) {
+  const isEdge = parsed.source || parsed.target || parsed.dir;
+  const allProps = { ...parsed };
+  headers.value.forEach((h, i) => {
+    if (h.startsWith(varHeader + '.')) {
+      const propName = h.split('.').slice(1).join('.');
+      const val = row[i];
+      if (val != null && !isPathLike(val) && typeof val !== 'object') {
+        allProps[propName] = val;
+      }
+    }
+  });
+  return {
+    type: isEdge ? 'edge' : 'node',
+    label: parsed.label,
+    id: String(parsed.id),
+    properties: allProps,
+    schemaProps: Object.keys(allProps).filter(k => !['type', 'content', 'segments'].includes(k))
+  };
 }
 
 function handleCellClick(cell, header, rowIdx, colIdx, row) {
   selectedRowIdx.value = rowIdx;
   selectedColIdx.value = colIdx;
   emit('cell-click', { cell, header, rowIdx, colIdx, row });
-  
-  const segments = getSegments(cell, rowIdx);
-  if (segments && segments.length > 0) {
-    emit('open-sequence', segments);
+
+  // For path cells, open the sequence modal
+  if (isCellPath(cell, colIdx, rowIdx)) {
+    const segments = getSegments(cell, rowIdx);
+    if (segments && segments.length > 0) {
+      emit('open-sequence', segments);
+    }
+    return;
   }
+
+  // For property columns like "y.name": find the parent variable "y" and show its full node
+  if (header.includes('.')) {
+    const parent = findParentVariableCell(header, row);
+    if (parent) {
+      const parsed = parseCellValue(parent.cell);
+      if (parsed && typeof parsed === 'object' && parsed.id !== undefined && parsed.label !== undefined) {
+        emit('cell-select', [buildNodeSegment(parsed, parent.header, row)]);
+        return;
+      }
+    }
+  }
+
+  // For direct variable columns (x, y) that are node/edge objects
+  const parsed = parseCellValue(cell);
+  if (parsed && typeof parsed === 'object' && parsed.id !== undefined && parsed.label !== undefined) {
+    emit('cell-select', [buildNodeSegment(parsed, header, row)]);
+    return;
+  }
+
+  // Fallback: simple scalar cell — build a generic property view from the row
+  const properties = {};
+  headers.value.forEach((h, i) => {
+    const val = row[i];
+    if (val != null && !isPathLike(val) && !(typeof val === 'object' && val.content)) {
+      if (typeof val === 'object' && val.id !== undefined) {
+        properties[h] = `${val.label} : ${val.id}`;
+      } else {
+        properties[h] = val;
+      }
+    }
+  });
+  const segment = {
+    type: 'node',
+    label: header,
+    id: String(cell ?? ''),
+    properties: properties,
+    schemaProps: Object.keys(properties)
+  };
+  emit('cell-select', [segment]);
 }
 </script>
 

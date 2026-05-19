@@ -442,8 +442,9 @@ const formatNodeButtonLabel = (node) => {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    background-color: var(--bg-primary);
+    background-color: var(--bg-primary, white);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
 }
 
 .details-content-wrapper {
@@ -454,17 +455,18 @@ const formatNodeButtonLabel = (node) => {
 }
 
 .column-header {
-    background-color: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary, #F9FAFB);
+    border-bottom: 1px solid var(--border-color, #E5E7EB);
     padding: 0.5rem 1rem;
     font-size: 0.8rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--text-primary, #1F2937);
     display: flex;
     align-items: center;
     gap: 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    border-radius: 12px 12px 0 0;
 }
 
 .object-header {

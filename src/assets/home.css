@@ -552,6 +552,16 @@
     color: #3b82f6;
 }
 
+/* No-limit toggle: active = limit is OFF (orange warning) */
+.no-limit-btn.no-limit-active {
+    background-color: rgba(249, 115, 22, 0.12);
+    border-color: #f97316;
+    color: #f97316;
+}
+.no-limit-btn.no-limit-active:hover {
+    background-color: rgba(249, 115, 22, 0.2);
+}
+
 .header-actions-query {
     display: flex;
     align-items: center;
@@ -2326,7 +2336,7 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    background-color: var(--bg-primary);
+    background-color: var(--bg-secondary);
     border: 1px solid var(--border-color);
     margin: 0.5rem 0.5rem 0 0.5rem;
     border-bottom: none;
@@ -2401,6 +2411,7 @@
     height: 100%;
     overflow: hidden;
     position: relative;
+    padding: 0.25rem;
 }
 
 .tree-wrapper.mini-canvas {
@@ -2496,18 +2507,46 @@
     min-width: 0;
 }
 
+/* Unified card styling for all major panels */
+.component-card {
+    margin: 0.75rem;
+    border-radius: 12px;
+    background: var(--bg-primary, white);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    border: 1px solid var(--border-color, #E5E7EB);
+    transition: box-shadow 0.3s ease;
+}
+
+.component-card:hover {
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* Layout container that uses gap instead of margins for card spacing */
+.card-layout-container {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    padding: 0.25rem;
+}
+
+.card-layout-container > .component-card {
+    margin: 0.5rem;
+}
+
 .column-header {
-    background-color: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
+    background-color: var(--bg-secondary, #F9FAFB);
+    border-bottom: 2px solid var(--border-color, #E5E7EB);
+    padding: 0 18px;
+    min-height: 49px;
+    font-size: 16px;
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--text-primary, #1F2937);
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    border-radius: 12px 12px 0 0;
 }
 
 .comparison-splitter {
@@ -2618,4 +2657,299 @@
 .schema-vis-content {
     min-height: 500px;
     height: calc(100vh - 250px);
+}
+
+/* ─── Wider Path Sequence Modal ──────────────────────────────── */
+.seq-modal-wide {
+    max-width: 92vw !important;
+    width: min(95vw, 1400px) !important;
+}
+
+/* Side-floating navigation arrows (outside the modal box) */
+.seq-side-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10001;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.25);
+    background: rgba(30, 30, 40, 0.75);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.seq-side-nav--left  { left: 1.25rem; }
+.seq-side-nav--right { right: 1.25rem; }
+.seq-side-nav:hover:not(:disabled) {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    transform: translateY(-50%) scale(1.1);
+}
+.seq-side-nav:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    transform: translateY(-50%);
+}
+
+/* Truncate very long IDs with tooltip */
+.seq-id-truncate {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: bottom;
+    cursor: default;
+}
+
+/* Truncate long property values — click to expand */
+.seq-prop-val {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    cursor: pointer;          /* hint: clickable */
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: max-width 0.2s;
+}
+.seq-prop-val:hover {
+    text-decoration: underline dotted;
+    color: #3b82f6;
+}
+
+/* Expanded state — shows full value */
+.seq-prop-val-full {
+    display: inline-block;
+    white-space: normal;
+    word-break: break-all;
+    max-width: 260px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
+}
+.seq-prop-val-full:hover {
+    color: #3b82f6;
+}
+
+/* Expand / Collapse button */
+.seq-expand-btn {
+    margin-top: 0.4rem;
+    background: none;
+    border: none;
+    color: #3b82f6;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+    transition: opacity 0.15s;
+}
+.seq-expand-btn:hover { opacity: 0.7; }
+
+/* Navigation arrows */
+.seq-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.seq-nav-btn:hover:not(:disabled) {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+.seq-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* "2 / 14" counter badge */
+.seq-nav-counter {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.6rem;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Slightly wider sequence cards */
+.sequence-row {
+    width: 230px;
+}
+
+/* ─── Database Selection Modal ──────────────────────────────── */
+.db-modal-content {
+    max-width: 460px !important;
+    width: 92% !important;
+}
+
+.db-modal-body {
+    padding: 1.25rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    overflow-y: auto !important;
+    max-height: 60vh !important;
+}
+
+.db-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.db-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.875rem 1.125rem;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+}
+
+.db-item:hover {
+    background-color: rgba(59, 130, 246, 0.07);
+    border-color: #3b82f6;
+    color: #3b82f6;
+    transform: translateX(2px);
+}
+
+.db-item-active {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    border-color: #3b82f6 !important;
+    color: #3b82f6 !important;
+    font-weight: 700;
+}
+
+.db-item-name {
+    flex: 1;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.9rem;
+}
+
+.db-check {
+    color: #22c55e;
+    flex-shrink: 0;
+}
+
+.db-modal-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.db-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid rgba(59, 130, 246, 0.2);
+    border-radius: 50%;
+    border-top-color: #3b82f6;
+    animation: spin 0.7s linear infinite;
+}
+
+.db-modal-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* ─── Active DB Badge in Header ─────────────────────────────── */
+.db-active-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.55rem;
+    background-color: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #3b82f6;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    margin-left: 0.25rem;
+    letter-spacing: 0.01em;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ─── Toast Notification ─────────────────────────────────────── */
+.db-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    z-index: 99999;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.db-toast.success {
+    background-color: #22c55e;
+    color: #fff;
+}
+
+.db-toast.error {
+    background-color: #ef4444;
+    color: #fff;
+}
+
+/* Vue transition for toast */
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
 }
