@@ -49,6 +49,7 @@ const handleLogout = () => {
   isLoggedIn.value = false
   userSession.value = null
   localStorage.removeItem('pathdb_session')
+  localStorage.removeItem('pathdb_selected_db')
 }
 
 onMounted(async () => {

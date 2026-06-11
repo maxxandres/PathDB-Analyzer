@@ -4,18 +4,21 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from "vue";
-import { Network } from "vis-network";
+import { Network, DataSet } from "vis-network/standalone";
 import "vis-network/styles/vis-network.css";
 
 const props = defineProps({
   schemaData: { type: Object, required: true },
   labelColors: { type: Object, default: () => ({}) },
+  highlightSelection: { type: Object, default: null }
 });
 
-const emit = defineEmits(["node-click", "edge-click"]);
+const emit = defineEmits(["node-click", "edge-click", "clear-highlight"]);
 
 const container = ref(null);
 let network = null;
+let edgesDataSet = null;
+let highlightedLabel = ref(null);
 
 function destroyNetwork() {
   if (network) {
@@ -76,12 +79,45 @@ function formatNumber(num) {
   return num.toString();
 }
 
+function applyEdgeHighlight(labelToHighlight, allEdges) {
+  if (!edgesDataSet) return;
+  const updates = allEdges.map((e) => {
+    if (!labelToHighlight) {
+      // Reset all edges to default
+      return { id: e.id, color: { color: "#3b82f6", opacity: 1 }, width: 2, font: { color: '#343434', size: 11 } };
+    }
+    const isMatch = e.meta?.edgeLabel === labelToHighlight;
+    return isMatch
+      ? { id: e.id, color: { color: "#f59e0b", opacity: 1 }, width: 4, font: { color: '#92400e', size: 13 } }
+      : { id: e.id, color: { color: "#cbd5e1", opacity: 0.4 }, width: 1, font: { color: '#94a3b8', size: 11 } };
+  });
+  edgesDataSet.update(updates);
+}
+
+function applyNodeHighlight(selectedNodeId, allEdges) {
+  if (!edgesDataSet) return;
+  const updates = allEdges.map((e) => {
+    if (!selectedNodeId) {
+      // Reset all edges to default
+      return { id: e.id, color: { color: "#3b82f6", opacity: 1 }, width: 2, font: { color: '#343434', size: 11 } };
+    }
+    const isConnected = e.from === selectedNodeId || e.to === selectedNodeId;
+    return isConnected
+      ? { id: e.id, color: { color: "#3b82f6", opacity: 1 }, width: 2.5, font: { color: '#343434', size: 11 } }
+      : { id: e.id, color: { color: "#cbd5e1", opacity: 0.15 }, width: 1, font: { color: '#cbd5e1', size: 9 } };
+  });
+  edgesDataSet.update(updates);
+}
+
 function createNetwork() {
   if (!container.value) return;
   destroyNetwork();
+  highlightedLabel.value = null;
 
   const { nodes, edges } = buildDataFromSchema();
   if (!nodes.length && !edges.length) return;
+
+  edgesDataSet = new DataSet(edges);
 
   const options = {
     layout: { improvedLayout: true, hierarchical: false },
@@ -95,11 +131,15 @@ function createNetwork() {
     edges: { width: 2, color: { color: "#3b82f6", highlight: "#2563EB" } },
   };
 
-  network = new Network(container.value, { nodes, edges }, options);
+  network = new Network(container.value, { nodes, edges: edgesDataSet }, options);
 
   network.on("click", (params) => {
     const nodeId = params.nodes[0];
     if (nodeId && !nodeId.startsWith("e-")) {
+      // Click on a node: highlight only connected edges
+      highlightedLabel.value = null;
+      applyNodeHighlight(nodeId, edges);
+
       const node = nodes.find((n) => n.id === nodeId);
       if (!node) return;
 
@@ -129,7 +169,25 @@ function createNetwork() {
     } else if (params.edges.length > 0) {
       const edgeId = params.edges[0];
       const edge = edges.find((e) => e.id === edgeId);
+      if (!edge) return;
+
+      const clickedLabel = edge.meta?.edgeLabel;
+      if (highlightedLabel.value === clickedLabel) {
+        // Toggle off: clear highlight
+        highlightedLabel.value = null;
+        applyEdgeHighlight(null, edges);
+        emit("clear-highlight");
+      } else {
+        highlightedLabel.value = clickedLabel;
+        applyEdgeHighlight(clickedLabel, edges);
+      }
+
       handleEdgeClick(edge, edges);
+    } else {
+      // Click on empty canvas: clear highlight
+      highlightedLabel.value = null;
+      applyEdgeHighlight(null, edges);
+      emit("clear-highlight");
     }
   });
 }
@@ -162,6 +220,22 @@ function handleEdgeClick(edge, edges) {
 onMounted(() => { createNetwork(); });
 onBeforeUnmount(() => { destroyNetwork(); });
 watch(() => props.schemaData, () => { createNetwork(); }, { deep: true });
+watch(() => props.highlightSelection, (newVal) => {
+  if (!network) return;
+  const { edges } = buildDataFromSchema();
+  if (!newVal) {
+    highlightedLabel.value = null;
+    applyEdgeHighlight(null, edges);
+    return;
+  }
+  if (newVal.type === 'node') {
+    highlightedLabel.value = null;
+    applyNodeHighlight(newVal.label, edges);
+  } else if (newVal.type === 'edge') {
+    highlightedLabel.value = newVal.label;
+    applyEdgeHighlight(newVal.label, edges);
+  }
+}, { deep: true });
 </script>
 
 <style scoped>

@@ -13,6 +13,19 @@
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
+          <label for="ip">
+            <i data-lucide="globe" class="input-icon"></i>
+            Connect to
+          </label>
+          <input 
+            id="ip"
+            v-model="ip" 
+            type="text"
+            placeholder="Enter server IP"
+            required
+          />
+        </div>
+        <div class="form-group">
           <label for="username">
             <i data-lucide="user" class="input-icon"></i>
             Username
@@ -63,6 +76,8 @@ import { api } from '../services/api';
 const props = defineProps(['theme']);
 const emit = defineEmits(['login-success', 'toggle-theme']);
 
+const DEFAULT_IP = 'localhost';
+const ip = ref(DEFAULT_IP);
 const username = ref('');
 const password = ref('');
 const error = ref('');
@@ -84,6 +99,9 @@ const handleLogin = async () => {
     isLoading.value = true;
 
     try {
+        // 0. Configurar la IP/host destino antes de cualquier petición
+        api.setBaseUrl(ip.value);
+
         // 1. Login to get loginToken
         const loginToken = await api.login(username.value, password.value);
         
@@ -98,8 +116,7 @@ const handleLogin = async () => {
         
         emit('login-success', sessionData);
     } catch (e) {
-
-        error.value = 'Authentication failed. Please check your credentials.';
+        error.value = e.message || 'Error desconocido al conectar';
     } finally {
         isLoading.value = false;
     }

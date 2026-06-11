@@ -1,12 +1,12 @@
 <template>
   <div class="path-viewer-card">
     <div class="card-title">
-      <span class="ov-crumb-root">ObjectViewer</span>
+      <span class="ov-crumb-root">Object Viewer</span>
       <span class="ov-crumb-sep">›</span>
       <span class="ov-crumb-leaf">{{ viewerTitle }}</span>
-      <button class="expand-all-btn" @click="toggleExpandAll">
+    <!-- <button class="expand-all-btn" @click="toggleExpandAll">
         {{ allExpanded ? 'Collapse all' : 'Expand all' }}
-      </button>
+      </button> -->
     </div>
 
     <div v-if="sequence && sequence.length > 0" class="graph-info path-viewer">
@@ -18,10 +18,10 @@
           class="path-element-wrapper"
         >
           <!-- NODE CARD -->
-          <div v-if="element.type === 'node'" class="path-element-card is-node" style="width: 75%;">
+          <div v-if="element.type === 'node'" class="path-element-card is-node">
             <div class="element-header">
               <span class="element-icon">●</span>
-              <span class="element-type" v-if="mode === 'schema'">{{ String(element.label).toUpperCase() }}</span>
+              <span class="element-type" v-if="mode === 'schema'" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Node Label: {{ element.label }}</span>
               <span class="element-type" v-else>{{ element.label }} › {{ element.id }}</span>
               <button class="toggle-details-btn" @click.stop="toggleElementDetails(index)">
                 <span class="chevron-icon" :class="{ 'is-open': isExpanded(index) }"></span>
@@ -84,7 +84,7 @@
           <div v-else-if="element.type === 'edge'" class="path-element-card is-edge">
             <div class="element-header">
               <span class="element-icon">→</span>
-              <span class="element-type" v-if="mode === 'schema'">{{ String(element.label).toUpperCase() }}</span>
+              <span class="element-type" v-if="mode === 'schema'" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Edge Label: {{ element.label }}</span>
               <span class="element-type" v-else>{{ element.label }} › {{ element.id }}</span>
               <button class="toggle-details-btn" @click.stop="toggleElementDetails(index)">
                 <span class="chevron-icon" :class="{ 'is-open': isExpanded(index) }"></span>
@@ -340,13 +340,13 @@ function togglePropExpand(index, key) {
 .path-element-card.is-node {
   border-color: #00897B;
   background: #b8f4f1;
-  width: 75%;
+  width: 90%;
 }
 
 .path-element-card.is-edge {
   border-color: #1976D2;
   background: #a9d8f9;
-  width: 50%;
+  width: 90%;
   margin-left: 0;
 }
 

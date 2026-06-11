@@ -1,9 +1,25 @@
-const API_BASE_URL = '/api/v1';
+// Default: uses Vite proxy (localhost:8080). Overridden by setBaseUrl().
+let API_BASE_URL = '/api/v1';
+const DEFAULT_PORT = 8080;
 
 /**
  * PathDB API Service
  */
 export const api = {
+    /**
+     * Sets the backend base URL from the host entered by the user.
+     * Accepts formats: 'localhost', '192.168.1.5', '192.168.1.5:9090'
+     */
+    setBaseUrl(host) {
+        if (!host || !host.trim()) return;
+        const trimmed = host.trim();
+        // If port is already included (e.g. 'host:9090'), use it as-is
+        const hasPort = /:\d+$/.test(trimmed);
+        const base = hasPort ? trimmed : `${trimmed}:${DEFAULT_PORT}`;
+        API_BASE_URL = `http://${base}/api/v1`;
+        console.log(`[API] Base URL set → ${API_BASE_URL}`);
+    },
+
     /**
      * Common headers for all requests
      */
@@ -18,14 +34,31 @@ export const api = {
      * Authenticates user and returns a login token.
      */
     async login(username, password) {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
-            method: 'POST',
-            headers: this.getHeaders(),
-            body: JSON.stringify({ username, password })
-        });
-        const result = await response.json();
-        if (!result.success) throw new Error('Login failed');
-        return result.data; // loginToken
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify({ username, password }),
+                signal: controller.signal
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error('Invalid credentials.');
+            return result.data; // loginToken
+        } catch (e) {
+            const hostUrl = API_BASE_URL.replace('/api/v1', '');
+            if (e.name === 'AbortError') {
+                throw new Error(`Can't connect to ${hostUrl} — server did not respond within 30 seconds.`);
+            }
+            // TypeError: Failed to fetch → host unreachable or doesn't exist
+            if (e instanceof TypeError) {
+                throw new Error(`Can't connect to ${hostUrl}.`);
+            }
+            throw e;
+        } finally {
+            clearTimeout(timeoutId);
+        }
     },
 
     /**

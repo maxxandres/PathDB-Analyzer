@@ -47,7 +47,9 @@
         </thead>
         <tbody>
           <tr v-if="filteredRows.length === 0">
-            <td :colspan="headers.length" class="rt-empty">No results match your search</td>
+            <td :colspan="headers.length" class="rt-empty">
+              {{ searchQuery.trim() ? 'No results match your search' : 'No results found' }}
+            </td>
           </tr>
           <tr
             v-for="(row, rowIdx) in filteredRows"
@@ -107,7 +109,7 @@ const selectedColIdx = ref(null);
 const headers = computed(() => props.tableData?.headers || []);
 const rows = computed(() => props.tableData?.rows || []);
 const rawData = computed(() => props.tableData?.data || []);
-const hasData = computed(() => headers.value.length > 0 && rows.value.length > 0);
+const hasData = computed(() => headers.value.length > 0);
 
 const filteredRows = computed(() => {
   let data = rows.value;

@@ -111,15 +111,15 @@
                         <!-- DB list -->
                         <div v-else-if="availableDbs.length > 0" class="db-list">
                             <button
-                                v-for="dbName in availableDbs"
-                                :key="dbName"
+                                v-for="(dbName, dbIdx) in availableDbs"
+                                :key="dbIdx"
                                 class="db-item"
-                                :class="{ 'db-item-active': dbName === selectedDb }"
-                                @click="selectDatabase(dbName)"
+                                :class="{ 'db-item-active': dbIdx === selectedDbIndex }"
+                                @click="selectDatabase(dbName, dbIdx)"
                             >
                                 <i data-lucide="database" class="icon-tiny"></i>
                                 <span class="db-item-name">{{ dbName }}</span>
-                                <i v-if="dbName === selectedDb" data-lucide="check" class="icon-tiny db-check"></i>
+                                <i v-if="dbIdx === selectedDbIndex" data-lucide="check" class="icon-tiny db-check"></i>
                             </button>
                         </div>
                         <!-- Empty state -->
@@ -155,18 +155,18 @@
                     <div class="sequence-modal-header">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <h3 class="sequence-modal-title">Path Sequence Details</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
                             <!-- Navigation counter -->
                             <span v-if="allPathSequences.length > 1" class="seq-nav-counter">
                                 {{ currentPathIndex + 1 }} / {{ allPathSequences.length }}
                             </span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button @click="closeSequenceModal" class="sequence-modal-close-btn">
                                 <i data-lucide="x" class="icon-small"></i>
                             </button>
                         </div>
                     </div>
-                    <div class="sequence-modal-body" style="display: flex; flex-direction: column; width: 100%;">
+                    <div class="sequence-modal-body" style="display: flex; flex-direction: column; width: 100%; overflow-y: auto;">
                         <!-- Path Summary Table -->
                         <div class="sequence-summary-wrapper" style="margin: 0 auto 2rem auto; width: fit-content; max-width: 90%;">
                             <table class="premium-table sequence-summary-table" style="margin: 0; min-width: 400px; text-align: center; border: 1px solid var(--border-color);">
@@ -174,8 +174,8 @@
                                     <tr>
                                         <th>Source</th>
                                         <th>Target</th>
-                                        <th>Nodes</th>
-                                        <th>Edges</th>
+                                        <th>#Nodes</th>
+                                        <th>#Edges</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -200,7 +200,7 @@
                         </div>
 
                         <h4 style="color: var(--text-color); margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600;">Path Sequence</h4>
-                        <div class="sequential-path horizontal">
+                        <div class="sequential-path horizontal" :style="{ '--seq-card-width': seqCardWidth + 'px' }">
                             <template v-for="(segment, segmentIdx) in selectedSequence" :key="segmentIdx">
 
                                 <div class="sequence-row" :class="segment.type">
@@ -216,6 +216,10 @@
                                         :style="segment.type === 'node' ? {
                                             borderTop: '3px solid ' + (schemaLabelColors[segment.label] || '#3b82f6'),
                                         } : { borderTop: '3px solid #3b82f6' }">
+                                        
+                                        <!-- Resize handle on the right edge -->
+                                        <div class="card-resize-handle" :class="{ 'is-dragging': isDraggingSeqCard }" @mousedown="startResizeSeqCard"></div>
+
                                         <div class="sequence-card-header">
                                             <!-- Label: bold+black always, only border carries schema color -->
                                             <span class="branded-label" style="font-weight: 800; color: var(--text-primary);">
@@ -246,9 +250,9 @@
                                             </template>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div v-if="segmentIdx < selectedSequence.length - 1 && segment.type === 'node'" class="sequence-connector"></div>
+                                    
+                                </div>
 
                             </template>
                         </div>
@@ -286,7 +290,7 @@
 
                     <div v-show="activeCardIndex < 3" class="tree-card-content">
                         <!-- Left: Main Tree Column (Active for 0, 1, 2) -->
-                        <div class="comparison-column component-card" :style="{ flex: activeCardIndex === 2 ? '1' : '1.2' }">
+                        <div class="comparison-column component-card" style="flex: 1.2;">
                             <div class="column-header" v-if="activeCardIndex < 3">
                                 <i :data-lucide="activeCardIndex === 0 ? 'git-commit' : (activeCardIndex === 1 ? 'zap' : 'layers')" class="icon-xtiny"></i>
                                 {{ cardTitles[activeCardIndex] }}
@@ -297,16 +301,11 @@
                                 <QueryTree v-show="activeCardIndex === 0" :ref="el => setTreeRef(el, 0)" :treeData="logicalTreeData" @node-select="n => handleNodeSelect(n, 0)" />
                                 <QueryTree v-show="activeCardIndex === 1" :ref="el => setTreeRef(el, 1)" :treeData="optimizedTreeData" @node-select="n => handleNodeSelect(n, 1)" />
                                 <QueryTree v-show="activeCardIndex === 2" :ref="el => setTreeRef(el, 2)" :treeData="physicalTreeData" @node-select="n => handleNodeSelect(n, 2)" />
-                                
-
-                                </div>
                             </div>
+                        </div>
 
-                        <!-- Splitter (Only for Physical tab) -->
-                   
-
-                        <!-- Object Viewer Column (Only for Physical tab) -->
-                        <div v-if="activeCardIndex === 2" class="comparison-column component-card" style="flex: 1;">
+                        <!-- Object Viewer Column (for all tree tabs 0, 1, 2) -->
+                        <div class="comparison-column component-card" style="flex: 1;">
                             <ObjectViewer 
                                 :selectedNode="selectedNode"
                                 :activeTreeData="activeTreeData"
@@ -315,7 +314,7 @@
                                 :currentNodeData="currentNodeData"
                                 :activeJoinTab="activeJoinTab"
                                 @open-sequence-modal="openSequenceModal"
-                                @select-node="n => handleNodeSelect(n, 2)"
+                                @select-node="n => handleNodeSelect(n, activeCardIndex)"
                             />
                         </div>
                     </div>
@@ -370,8 +369,10 @@
                             <GraphSchemaPath
                                 :schemaData="SCHEMA_DATA"
                                 :labelColors="schemaLabelColors"
+                                :highlightSelection="schemaHighlightSelection"
                                 @node-click="handleGraphInfoNodeClick"
                                 @edge-click="handleGraphInfoEdgeClick"
+                                @clear-highlight="schemaHighlightSelection = null"
                             />
                         </div>
                        
@@ -581,6 +582,7 @@ const resultsTableData = computed(() => {
 });
 
 const selectedGraphInfoSequence = ref([]);
+const schemaHighlightSelection = ref(null);
 
 const handleGraphInfoNodeClick = (nodeObject) => {
   const schemaProps = nodeObject.schemaProps || (nodeObject.properties && nodeObject.properties.Properties ? Object.keys(nodeObject.properties.Properties) : []);
@@ -591,6 +593,7 @@ const handleGraphInfoNodeClick = (nodeObject) => {
     schemaEdges: nodeObject.schemaEdges
   };
   selectedGraphInfoSequence.value = [segment];
+  schemaHighlightSelection.value = { type: 'node', label: nodeObject.label };
 };
 
 const handleGraphInfoEdgeClick = (edgeObject) => {
@@ -602,9 +605,11 @@ const handleGraphInfoEdgeClick = (edgeObject) => {
     schemaConnections: edgeObject.schemaConnections
   };
   selectedGraphInfoSequence.value = [segment];
+  schemaHighlightSelection.value = { type: 'edge', label: edgeObject.label };
 };
 
 const handleSchemaNavigate = ({ type, label }) => {
+  schemaHighlightSelection.value = { type, label };
   if (type === 'node') {
     const propsObject = SCHEMA_DATA.value.nodeSchema[label] || {};
     
@@ -768,11 +773,40 @@ const dbModalShownOnLogin = ref(false);
 
 watch(() => props.session, async (newSession) => {
   if (newSession && newSession.loginToken && newSession.sessionToken) {
+    const savedDb = localStorage.getItem('pathdb_selected_db');
+    let dbToLoad = 'default';
+    let dbIndexToLoad = 0;
+    let autoSwitched = false;
+
+    try {
+      // Fetch available databases first
+      const dbs = await api.listDatabases(newSession.loginToken, newSession.sessionToken);
+      availableDbs.value = Array.isArray(dbs) ? dbs : ['default'];
+      
+      // If we have a saved database and it exists in the backend list, switch to it
+      if (savedDb && availableDbs.value.includes(savedDb)) {
+        dbToLoad = savedDb;
+        dbIndexToLoad = availableDbs.value.indexOf(savedDb);
+        console.log(`[PathDB] Restoring database selection from localStorage: ${dbToLoad}`);
+        await api.useDatabase(dbToLoad, newSession.loginToken, newSession.sessionToken);
+        autoSwitched = true;
+      }
+    } catch (e) {
+      console.error('[PathDB] Failed to restore database selection:', e);
+    }
+
+    selectedDb.value = dbToLoad;
+    selectedDbIndex.value = dbIndexToLoad;
+
+    // Load schema for the selected database
     await loadSchema(newSession);
-    // Show DB picker only on first login of this session, not on every re-render
+
+    // Show DB picker only on first login of this session, and only if we did not auto-switch to a saved DB
     if (!dbModalShownOnLogin.value) {
       dbModalShownOnLogin.value = true;
-      openDbModal();
+      if (!autoSwitched) {
+        openDbModal();
+      }
     }
   } else {
     SCHEMA_DATA.value = { nodeCount: 0, edgeCount: 0, edgeCountByLabel: {}, nodeSchema: {}, edgeSchema: {}, edgeConnections: {} };
@@ -874,6 +908,7 @@ const selectedTableSequence = ref([]);
 const showDbModal = ref(false);
 const availableDbs = ref([]);
 const selectedDb = ref('default');
+const selectedDbIndex = ref(0); // track by index to handle duplicate names
 const dbModalLoading = ref(false);
 const dbLoadingMessage = ref('Loading databases...');
 const dbNotification = ref({ visible: false, message: '', type: 'success' });
@@ -1195,8 +1230,8 @@ const closeDbModal = () => {
     showDbModal.value = false;
 };
 
-const selectDatabase = async (dbName) => {
-    if (dbName === selectedDb.value || !props.session) return;
+const selectDatabase = async (dbName, dbIdx) => {
+    if (dbIdx === selectedDbIndex.value || !props.session) return;
     dbModalLoading.value = true;
     dbLoadingMessage.value = `Switching to ${dbName}...`;
     try {
@@ -1205,6 +1240,8 @@ const selectDatabase = async (dbName) => {
         await api.useDatabase(dbName, loginToken, sessionToken);
         console.timeEnd(`[PathDB] useDatabase('${dbName}') (backend)`);
         selectedDb.value = dbName;
+        selectedDbIndex.value = dbIdx;
+        localStorage.setItem('pathdb_selected_db', dbName); // Save DB selection to persist across reloads
         showDbModal.value = false;
         showDbToast(`Switched to database: ${dbName}`, 'success');
         // Reload schema for the newly selected database
@@ -1243,6 +1280,38 @@ const allPathSequences = ref([]);   // full list for prev/next navigation
 const currentPathIndex = ref(0);
 const expandedCards = ref({});       // segmentIdx -> bool (expand/collapse)
 const expandedProps = ref({});       // 'segIdx-key' -> bool (click-to-expand a single value)
+
+// Dynamic Sequence Card Width resizing
+const seqCardWidth = ref(300); // Start wider (300px) as requested
+const isDraggingSeqCard = ref(false);
+let startSeqX = 0;
+let startSeqWidth = 0;
+
+const startResizeSeqCard = (e) => {
+    e.preventDefault();
+    startSeqX = e.clientX;
+    startSeqWidth = seqCardWidth.value;
+    isDraggingSeqCard.value = true;
+    
+    document.addEventListener('mousemove', doResizeSeqCard);
+    document.addEventListener('mouseup', stopResizeSeqCard);
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+};
+
+const doResizeSeqCard = (e) => {
+    const diff = e.clientX - startSeqX;
+    // Min width is 260px (what it was previously)
+    seqCardWidth.value = Math.max(260, startSeqWidth + diff);
+};
+
+const stopResizeSeqCard = () => {
+    document.removeEventListener('mousemove', doResizeSeqCard);
+    document.removeEventListener('mouseup', stopResizeSeqCard);
+    isDraggingSeqCard.value = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+};
 
 // Keyboard navigation handler
 const handleSeqKeydown = (e) => {
@@ -1386,27 +1455,27 @@ const presets = computed(() => {
     return [
         { 
             label: "Join Query", 
-            query: `MATCH TRAIL p = (x)-[(${e1}.${e2})]->(y) where x.name = "Moe" RETURN y.txt;` 
+            query: `MATCH TRAIL p = (x)-[(${e1}.${e2})]->(y) RETURN x, y, p, length(p) LIMIT 10;` 
         },
         { 
             label: "Union Query", 
-            query: `MATCH TRAIL p = (x)-[(${e1}|${e2})]->(y) where x.name = "Moe" RETURN y.name,y.txt;` 
+            query: `MATCH TRAIL p = (x)-[(${e1}|${e2})]->(y) RETURN x, y, p, length(p) LIMIT 10;` 
         },
         { 
             label: "Transitive Closure Query", 
-            query: `MATCH TRAIL p = (x)-[(${e1}+)]-> (y) RETURN p;` 
+            query: `MATCH TRAIL p = (x)-[(${e1}+)]-> (y) RETURN x, y, p, length(p) LIMIT 10;` 
         },
         { 
             label: "Kleene Query", 
-            query: `MATCH TRAIL p = (x)-[(${e1}*)]-> (y) RETURN p;` 
+            query: `MATCH TRAIL p = (x)-[(${e1}*)]-> (y) RETURN x, y, p, length(p) LIMIT 10;` 
         },
         { 
             label: "Complex Query 1 ", 
-            query: `MATCH TRAIL p = (x)-[((${e2}.${e3})+)]->(y) WHERE x.name = "Moe" RETURN y.name LIMIT 3` 
+            query: `MATCH TRAIL p = (x)-[((${e2}.${e3})+)]->(y) RETURN x, y, p, length(p) LIMIT 10;` 
         },
         { 
             label: "Complex Query 2 ", 
-            query: `MATCH TRAIL p = (x)-[((${e1}+.${e2}))]->(y) WHERE x.name = "Moe" RETURN y.txt;` 
+            query: `MATCH TRAIL p = (x)-[((${e1}+.${e2}))]->(y) RETURN x, y, p, length(p) LIMIT 10;` 
         }
     ];
 });
@@ -1439,18 +1508,11 @@ const handleNodeSelect = (node, index) => {
     // Safety check: node can be null if clicking background
     if (!node) return;
 
-    if (idx === 2) {
-        // Physical Tree: Data is already attached, no sub-queries needed. Just focus.
-        if (treeRef.value && typeof treeRef.value.focusNode === 'function') {
-            treeRef.value.focusNode(node.id);
-        }
-        return;
-    }
-
     // Focus and center the node in the tree visually
     if (treeRef.value && typeof treeRef.value.focusNode === 'function') {
         treeRef.value.focusNode(node.id);
     }
+    return;
 
     const label = node.label || "";
     let isRootNode = false;
@@ -2557,6 +2619,7 @@ const runQuery = async () => {
         if (noLimit.value) {
             effectiveQuery = effectiveQuery.replace(/\bLIMIT\s+\d+/gi, '').trim();
         }
+        console.log('[DEBUG] Query enviada al backend:', effectiveQuery);
 
         // 1. Fetch query trees FIRST (these parse/plan the query and modify backend context)
         const logicalPlan = await api.getQueryTree(effectiveQuery, loginToken, sessionToken);

@@ -7,7 +7,8 @@ const props = defineProps({
   queryInput: String,
   getNodeStats: Function,
   currentNodeData: Object,
-  activeJoinTab: String
+  activeJoinTab: String,
+  activeCardIndex: Number
 });
 
 const emit = defineEmits(['open-sequence-modal', 'select-node']);
@@ -130,6 +131,68 @@ const selectedNodeHeader = computed(() => {
         operatorName = "Paths₁";
     }
     return { title, operatorName, operatorStructure };
+});
+
+const formatNodeButtonLabel = (node) => {
+    let lbl = node.label ? node.label.split('\n')[0] : (node.properties?.Name || 'Unknown Node');
+    lbl = lbl.replace(/<b>/g, '').replace(/<\/b>/g, '');
+    lbl = lbl.replace(/<code>/g, '<sup>').replace(/<\/code>/g, '</sup>');
+    lbl = lbl.replace(/<i>/g, '<sub>').replace(/<\/i>/g, '</sub>');
+    return lbl;
+};
+
+// Computed property for Selected Object Parameters (ported from analiazr.vue)
+const selectedNodeParams = computed(() => {
+    if (!props.selectedNode || !props.activeTreeData) return null;
+    const label = props.selectedNode.label || '';
+    const params = [];
+
+    // Find children using the active tree edges
+    const children = (props.activeTreeData.edges || [])
+        .filter(e => e.from === props.selectedNode.id)
+        .map(e => (props.activeTreeData.nodes || []).find(n => n.id === e.to))
+        .filter(n => n)
+        .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')));
+
+    if (label.includes('⋈')) {
+        const restrictorMatch = label.match(/(?:⋈|Φ|<b>⋈<\/b>|<b>Φ<\/b>)\s+(?:<b>|<code>)?(TRAIL|SIMPLE|ACYCLIC|WALK)/i);
+        const restrictor = restrictorMatch ? restrictorMatch[1].toUpperCase() : 'WALK';
+        if (children[0]) params.push({ key: 'Left Path Set (S₁)', node: children[0] });
+        if (children[1]) params.push({ key: 'Right Path Set (S₂)', node: children[1] });
+        params.push({ key: 'Restrictor (τ)', value: restrictor });
+    } else if (label.includes('∪')) {
+        const restrictorMatch = label.match(/(?:∪|<b>∪<\/b>)\s+(?:<b>|<code>)?(TRAIL|SIMPLE|ACYCLIC|WALK)/i);
+        const restrictor = restrictorMatch ? restrictorMatch[1].toUpperCase() : 'WALK';
+        if (children[0]) params.push({ key: 'Left Path Set (S)', node: children[0] });
+        if (children[1]) params.push({ key: "Right Path Set (S')", node: children[1] });
+        params.push({ key: 'Restrictor (τ)', value: restrictor });
+    } else if (label.includes('Φ')) {
+        const restrictorMatch = label.match(/(?:Φ|⋈|<b>Φ<\/b>|<b>⋈<\/b>)\s+(?:<b>|<code>)?(TRAIL|SIMPLE|ACYCLIC|WALK)/i);
+        const restrictor = restrictorMatch ? restrictorMatch[1].toUpperCase() : 'WALK';
+        if (children[0]) params.push({ key: 'Path Set (S)', node: children[0] });
+        params.push({ key: 'Restrictor (τ)', value: restrictor });
+    } else if (label.includes('σ') || label.startsWith('Selection')) {
+        const conditionMatch = label.match(/(?:σ|<b>σ)<\/b>?\s*(.*)/i);
+        let condition = conditionMatch ? conditionMatch[1] : label;
+        condition = condition.replace(/<\/?(b|i|code|sub).*?>/g, '').trim();
+        if (children[0]) params.push({ key: 'Path Set (S)', node: children[0] });
+        params.push({ key: 'Selection condition (C)', value: condition });
+    } else if (label.includes('π') || props.selectedNode.properties?.Name === 'Manual Projection') {
+        let cleanLabel = label.replace(/<\/?(b|i|code).*?>/g, '');
+        let attributes = cleanLabel.replace(/^π[⁰¹²³⁴⁵⁶⁷⁸⁹0-9]*\s*/, '');
+        let limitAmount = null;
+        if (props.selectedNode.properties?.Details) {
+            const limitMatch = props.selectedNode.properties.Details.match(/LIMIT\s+(\d+)/i);
+            if (limitMatch && limitMatch[1]) limitAmount = limitMatch[1];
+        }
+        if (children[0]) params.push({ key: 'Path Set (S)', node: children[0] });
+        params.push({ key: 'Projection Term (α)', value: attributes });
+        if (limitAmount !== null) params.push({ key: 'Limit (j)', value: limitAmount });
+    } else if (label.includes('Paths₀') || label.includes('Paths₁')) {
+        params.push({ key: 'Graph (G)', value: 'G' });
+    }
+
+    return params.length > 0 ? params : null;
 });
 
 
@@ -276,11 +339,7 @@ const parsePathCell = (cell) => {
   return segments;
 };
 
-const formatNodeButtonLabel = (node) => {
-    let lbl = node.label ? node.label.split('\n')[0] : (node.properties?.Name || 'Unknown Node');
-    lbl = lbl.replace(/<\/?(b|i|code).*?>/g, '');
-    return lbl;
-};
+
 </script>
 
 <template>
@@ -294,9 +353,37 @@ const formatNodeButtonLabel = (node) => {
       <div class="details-content">
         <!-- Selected Object Header -->
         <div class="object-header" v-if="selectedNodeHeader">
-          <div class="object-label" style="font-size: 1.75rem; color: #3b82f6; font-weight: 600; margin-bottom: 1.5rem;" v-html="selectedNodeHeader.title"></div>
-          
-          <div class="node-statistics-container" style="margin-top: 1rem;">
+          <!-- Operator symbol (big) -->
+          <div class="object-label" style="font-size: 1.75rem; color: #3b82f6; font-weight: 600; margin-bottom: 0.5rem;" v-html="selectedNodeHeader.title"></div>
+
+          <!-- Operator structure -->
+          <div v-if="selectedNodeHeader.operatorStructure" style="margin-bottom: 1.25rem;">
+            <span
+              class="operator-structure"
+              v-html="selectedNodeHeader.operatorStructure"
+            ></span>
+          </div>
+
+          <!-- Node Parameters (Hidden for Physical Tree) -->
+          <div v-if="selectedNodeParams && activeCardIndex !== 2" class="node-parameters-container">
+            <div class="params-list">
+              <div v-for="(param, idx) in selectedNodeParams" :key="idx" class="param-item">
+                <span class="param-key">{{ param.key }} :</span>
+                <button
+                  v-if="param.node"
+                  class="param-node-btn"
+                  @click="$emit('select-node', param.node)"
+                  v-html="formatNodeButtonLabel(param.node)"
+                ></button>
+                <span v-else class="param-value-plain" v-html="param.value"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div style="border-top: 1px dashed var(--border-color, #E5E7EB); margin-bottom: 1rem;"></div>
+
+          <div class="node-statistics-container">
             <div>
               <div class="operator-info-line">
                 <span class="info-label">Runtime (ms) =</span>
@@ -473,6 +560,24 @@ const formatNodeButtonLabel = (node) => {
     margin-bottom: 1.5rem;
 }
 
+.operator-name-badge {
+    display: inline-block;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 0.15rem 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.operator-structure {
+    font-size: 1rem;
+    color: var(--text-secondary, #6B7280);
+}
+
 .operator-info-line {
     font-size: 0.8rem;
     margin-bottom: 0.5rem;
@@ -521,7 +626,7 @@ const formatNodeButtonLabel = (node) => {
 }
 
 .param-key {
-    font-weight: 600;
+    font-weight: normal;
     color: var(--text-primary);
 }
 
@@ -535,6 +640,16 @@ const formatNodeButtonLabel = (node) => {
     cursor: pointer;
     color: #ffffff;
     transition: all 0.2s;
+}
+
+.param-node-btn:hover {
+    background-color: #1d4ed8;
+}
+
+.param-value-plain {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .path-count-badge {
