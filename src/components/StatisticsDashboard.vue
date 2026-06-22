@@ -13,6 +13,24 @@ const props = defineProps({
 
 const emit = defineEmits(['update:aggregate-nodes', 'update:show-stats-table', 'redraw-charts']);
 
+const showStatsHelp = ref(false);
+
+const formatMetricValue = (value, headerName) => {
+    if (headerName && headerName.toLowerCase().includes('runtime')) {
+        const val = parseFloat(value);
+        if (!isNaN(val)) {
+            if (val === 0) {
+                return '0 ms';
+            } else if (val >= 100) {
+                return parseFloat((val / 1000).toFixed(2)).toString().replace('.', ',') + ' s';
+            } else {
+                return parseFloat(val.toFixed(2)).toString().replace('.', ',') + ' ms';
+            }
+        }
+    }
+    return value;
+};
+
 let chartInstances = {};
 
 const drawStatsChart = (metric) => {
@@ -89,7 +107,8 @@ const drawStatsChart = (metric) => {
                                         valueToDisplay = `${value}`;
                                     }
                                 } else {
-                                    valueToDisplay = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+                                    const yVal = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+                                    valueToDisplay = formatMetricValue(yVal, metric);
                                 }
                                 return label + valueToDisplay;
                             }
@@ -108,9 +127,19 @@ const reDrawAllCharts = () => {
     }
 };
 
-watch(() => props.chartDataRef, () => {
+const watchTrigger = () => {
     reDrawAllCharts();
-}, { deep: true });
+};
+
+watch(() => props.chartDataRef, watchTrigger, { deep: true });
+
+watch(showStatsHelp, (newVal) => {
+    if (newVal) {
+        nextTick(() => {
+            if (window.lucide) window.lucide.createIcons();
+        });
+    }
+});
 
 onMounted(() => {
     reDrawAllCharts();
@@ -129,9 +158,18 @@ onUnmounted(() => {
   <div class="statistics-dashboard-root">
     <!-- Left: Table -->
     <div v-if="showStatsTable && chartDataRef?.rows?.length > 0" class="stats-table-panel">
-      <div class="panel-header">
-        <i data-lucide="table" class="icon-tiny" style="color: var(--accent-primary);"></i>
-        <span class="panel-title">Data Table</span>
+      <div class="panel-header" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <i data-lucide="table" class="icon-tiny" style="color: var(--accent-primary);"></i>
+          <span class="panel-title">Data Table</span>
+          <button @click="showStatsHelp = true" title="Show Metric Definitions" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; padding: 0.2rem; border-radius: 4px; transition: all 0.2s; margin-left: 0.2rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" style="width: 0.85rem; height: 0.85rem;">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="table-scroll-container">
@@ -149,7 +187,7 @@ onUnmounted(() => {
               <td v-for="(cell, cidx) in row" :key="cidx"
                   :title="cidx === 0 ? String(cell) : undefined"
                   :class="{ 'fixed-col': cidx === 0, 'value-col': cidx !== 0 }">
-                {{ cell }}
+                {{ formatMetricValue(cell, chartDataRef.headers[cidx]) }}
               </td>
             </tr>
           </tbody>
@@ -166,9 +204,16 @@ onUnmounted(() => {
     <div class="charts-stack">
         <div v-for="metric in statsMetrics" :key="metric" class="chart-container">
             <div class="chart-header">
-                <div class="metric-info">
+                <div class="metric-info" style="display: flex; align-items: center; gap: 0.4rem;">
                     <div class="metric-marker"></div>
-                    <h5 class="metric-title">{{ metric }}</h5>
+                    <h5 class="metric-title" style="margin: 0;">{{ metric }}</h5>
+                    <button @click="showStatsHelp = true" title="Show Metric Definitions" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; padding: 0.1rem; border-radius: 4px; transition: all 0.2s; margin-left: 0.2rem;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" style="width: 0.85rem; height: 0.85rem;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                      </svg>
+                    </button>
                 </div>
                 <div class="chart-controls">
                     <button @click="sortAscending[metric] = !sortAscending[metric]; drawStatsChart(metric)"
@@ -194,6 +239,37 @@ onUnmounted(() => {
             <h2 class="empty-title">No Statistics Available</h2>
             <p class="empty-desc">The current node data does not have numeric statistics to chart.</p>
         </div>
+    </div>
+
+    <!-- Help Modal Popup Overlay -->
+    <div v-if="showStatsHelp" class="help-modal-overlay" @click.self="showStatsHelp = false">
+      <div class="help-modal-card">
+        <div class="help-modal-header">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" style="width: 0.85rem; height: 0.85rem; color: var(--accent-primary, #3b82f6);">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <h3 style="margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Metric Definitions</h3>
+          </div>
+          <button class="help-modal-close" @click="showStatsHelp = false">&times;</button>
+        </div>
+        <div class="help-modal-body">
+          <div class="help-item">
+            <span class="help-title">Runtime</span>
+            <p class="help-description">The time required to complete the execution of an operation or query.</p>
+          </div>
+          <div class="help-item">
+            <span class="help-title">Cardinality</span>
+            <p class="help-description">The estimated or actual number of solutions. In our case, is the number of paths returned by an operator or query. Cardinality = Total Input Rows &times; Selectivity. For example: <em>"The cardinality of this join is 500 rows."</em></p>
+          </div>
+          <div class="help-item">
+            <span class="help-title">Throughput</span>
+            <p class="help-description">The total number of operations or queries a system can process within a specific time period. In our case, it is the number of solutions (paths) produced per second.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -364,17 +440,13 @@ onUnmounted(() => {
 }
 
 .premium-select {
-    appearance: none;
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 0.25rem 1.5rem 0.25rem 0.5rem;
+    padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
     color: var(--text-primary);
     cursor: pointer;
-    background-repeat: no-repeat;
-    background-position: right 0.5rem center;
-    background-size: 0.8rem;
 }
 
 .action-btn-small {
@@ -421,5 +493,100 @@ onUnmounted(() => {
 .empty-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
+}
+
+/* Help Modal Styles */
+.help-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.help-modal-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.help-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.help-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.25rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.help-modal-close:hover {
+    color: var(--text-primary);
+    background: rgba(0,0,0,0.05);
+}
+
+.help-modal-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.help-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.help-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent-primary, #3b82f6);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+}
+
+.help-description {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    text-align: left;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 </style>

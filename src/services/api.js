@@ -154,6 +154,8 @@ export const api = {
 
     /**
      * Fetches the dynamic database schema.
+     * The endpoint returns a flat JSON object with nodeSchema, edgeSchema,
+     * edgeConnections, counts, etc. — no {success, data} wrapper.
      */
     async fetchSchema(loginToken, sessionToken) {
         console.log('[PathDB API] fetchSchema: Initiating request to POST /database/schema...');
@@ -163,10 +165,12 @@ export const api = {
             headers: this.getHeaders(),
             body: JSON.stringify({ loginToken, sessionToken })
         });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch schema: ${response.status} ${response.statusText}`);
+        }
         const result = await response.json();
         const duration = (performance.now() - startTime).toFixed(2);
-        console.log(`[PathDB API] fetchSchema: Request finished in ${duration} ms. Response success:`, result.success);
-        if (!result.success) throw new Error(result.message || 'Failed to fetch schema');
+        console.log(`[PathDB API] fetchSchema: Request finished in ${duration} ms.`);
         return result;
     },
 

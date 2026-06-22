@@ -1,9 +1,10 @@
 <template>
   <div class="login-container">
-    <!-- Theme Toggle -->
+    <!-- Theme Toggle
     <button class="theme-toggle" @click="$emit('toggle-theme')" :title="theme === 'light' ? 'Switch to Dark' : 'Switch to Light'">
       <i :data-lucide="theme === 'light' ? 'moon' : 'sun'"></i>
     </button>
+    -->
 
     <div class="glass-card">
       <div class="card-header">

@@ -85,7 +85,14 @@
 
     <!-- No data message -->
     <div v-else class="rt-no-data">
-      <p>Run a query to see results here.</p>
+      <div v-if="props.queryError" class="rt-error-container">
+        <div class="rt-error-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ef4444;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span class="rt-error-title">Query Error</span>
+        </div>
+        <pre class="rt-error-detail">{{ props.queryError }}</pre>
+      </div>
+      <p v-else>Run a query to see results here.</p>
     </div>
   </div>
 </template>
@@ -94,7 +101,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
-  tableData: { type: Object, default: () => ({ headers: [], rows: [], data: [] }) }
+  tableData: { type: Object, default: () => ({ headers: [], rows: [], data: [] }) },
+  queryError: { type: String, default: null }
 });
 
 const emit = defineEmits(['cell-click', 'open-sequence', 'cell-select']);
@@ -594,5 +602,53 @@ onUnmounted(() => {
   color: var(--text-secondary, #9ca3af);
   font-style: italic;
   padding: 2rem;
+}
+
+.rt-error-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 100%;
+  width: 100%;
+  padding: 1.25rem;
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 10px;
+  animation: fadeIn 0.3s ease;
+}
+
+.rt-error-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rt-error-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ef4444;
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
+
+.rt-error-detail {
+  margin: 0;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--text-primary, #374151);
+  font-style: normal;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

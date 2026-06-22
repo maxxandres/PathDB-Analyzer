@@ -21,6 +21,7 @@ const tableSortOrder = ref(1);
 const showResultsTable = ref(true);
 const selectedTablePath = ref(null);
 const expandedRow = ref(null);
+const showStatsHelp = ref(false);
 
 // Utility: parsePathString (Restored for localized use)
 const parsePathString = (str) => {
@@ -147,6 +148,24 @@ const selectedNodeParams = computed(() => {
     const label = props.selectedNode.label || '';
     const params = [];
 
+    const isPathsNode = (n) => {
+        if (!n) return false;
+        const lbl = (n.label || '').toLowerCase();
+        return lbl.includes('paths₁') || lbl.includes('paths₀') || lbl.includes('paths(');
+    };
+
+    const getParamValue = (key, child) => {
+        if (!child) return null;
+        if (isPathsNode(child)) {
+            let lbl = child.label || 'Paths(G)';
+            lbl = lbl.replace(/<b>/g, '').replace(/<\/b>/g, '');
+            lbl = lbl.replace(/<code>/g, '<sup>').replace(/<\/code>/g, '</sup>');
+            lbl = lbl.replace(/<i>/g, '<sub>').replace(/<\/i>/g, '</sub>');
+            return { key, value: lbl };
+        }
+        return { key, node: child };
+    };
+
     // Find children using the active tree edges
     const children = (props.activeTreeData.edges || [])
         .filter(e => e.from === props.selectedNode.id)
@@ -157,25 +176,43 @@ const selectedNodeParams = computed(() => {
     if (label.includes('⋈')) {
         const restrictorMatch = label.match(/(?:⋈|Φ|<b>⋈<\/b>|<b>Φ<\/b>)\s+(?:<b>|<code>)?(TRAIL|SIMPLE|ACYCLIC|WALK)/i);
         const restrictor = restrictorMatch ? restrictorMatch[1].toUpperCase() : 'WALK';
-        if (children[0]) params.push({ key: 'Left Path Set (S₁)', node: children[0] });
-        if (children[1]) params.push({ key: 'Right Path Set (S₂)', node: children[1] });
+        if (children[0]) {
+            const p = getParamValue('Left Path Set (S₁)', children[0]);
+            if (p) params.push(p);
+        }
+        if (children[1]) {
+            const p = getParamValue('Right Path Set (S₂)', children[1]);
+            if (p) params.push(p);
+        }
         params.push({ key: 'Restrictor (τ)', value: restrictor });
     } else if (label.includes('∪')) {
         const restrictorMatch = label.match(/(?:∪|<b>∪<\/b>)\s+(?:<b>|<code>)?(TRAIL|SIMPLE|ACYCLIC|WALK)/i);
         const restrictor = restrictorMatch ? restrictorMatch[1].toUpperCase() : 'WALK';
-        if (children[0]) params.push({ key: 'Left Path Set (S)', node: children[0] });
-        if (children[1]) params.push({ key: "Right Path Set (S')", node: children[1] });
+        if (children[0]) {
+            const p = getParamValue('Left Path Set (S)', children[0]);
+            if (p) params.push(p);
+        }
+        if (children[1]) {
+            const p = getParamValue("Right Path Set (S')", children[1]);
+            if (p) params.push(p);
+        }
         params.push({ key: 'Restrictor (τ)', value: restrictor });
     } else if (label.includes('Φ')) {
         const restrictorMatch = label.match(/(?:Φ|⋈|<b>Φ<\/b>|<b>⋈<\/b>)\s+(?:<b>|<code>)?(TRAIL|SIMPLE|ACYCLIC|WALK)/i);
         const restrictor = restrictorMatch ? restrictorMatch[1].toUpperCase() : 'WALK';
-        if (children[0]) params.push({ key: 'Path Set (S)', node: children[0] });
+        if (children[0]) {
+            const p = getParamValue('Path Set (S)', children[0]);
+            if (p) params.push(p);
+        }
         params.push({ key: 'Restrictor (τ)', value: restrictor });
     } else if (label.includes('σ') || label.startsWith('Selection')) {
         const conditionMatch = label.match(/(?:σ|<b>σ)<\/b>?\s*(.*)/i);
         let condition = conditionMatch ? conditionMatch[1] : label;
         condition = condition.replace(/<\/?(b|i|code|sub).*?>/g, '').trim();
-        if (children[0]) params.push({ key: 'Path Set (S)', node: children[0] });
+        if (children[0]) {
+            const p = getParamValue('Path Set (S)', children[0]);
+            if (p) params.push(p);
+        }
         params.push({ key: 'Selection condition (C)', value: condition });
     } else if (label.includes('π') || props.selectedNode.properties?.Name === 'Manual Projection') {
         let cleanLabel = label.replace(/<\/?(b|i|code).*?>/g, '');
@@ -185,7 +222,10 @@ const selectedNodeParams = computed(() => {
             const limitMatch = props.selectedNode.properties.Details.match(/LIMIT\s+(\d+)/i);
             if (limitMatch && limitMatch[1]) limitAmount = limitMatch[1];
         }
-        if (children[0]) params.push({ key: 'Path Set (S)', node: children[0] });
+        if (children[0]) {
+            const p = getParamValue('Path Set (S)', children[0]);
+            if (p) params.push(p);
+        }
         params.push({ key: 'Projection Term (α)', value: attributes });
         if (limitAmount !== null) params.push({ key: 'Limit (j)', value: limitAmount });
     } else if (label.includes('Paths₀') || label.includes('Paths₁')) {
@@ -338,6 +378,13 @@ const parsePathCell = (cell) => {
   if (segments.length === 0 && rawStr) segments = parsePathString(rawStr);
   return segments;
 };
+watch(showStatsHelp, (newVal) => {
+    if (newVal) {
+        nextTick(() => {
+            if (window.lucide) window.lucide.createIcons();
+        });
+    }
+});
 
 
 </script>
@@ -384,22 +431,59 @@ const parsePathCell = (cell) => {
           <div style="border-top: 1px dashed var(--border-color, #E5E7EB); margin-bottom: 1rem;"></div>
 
           <div class="node-statistics-container">
+            <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem;">
+              <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Operator Stats</span>
+              <button @click="showStatsHelp = true" title="Show Metric Definitions" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; display: inline-flex; align-items: center; padding: 0.1rem; border-radius: 4px; transition: all 0.2s;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" style="width: 0.85rem; height: 0.85rem;">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </button>
+            </div>
             <div>
               <div class="operator-info-line">
-                <span class="info-label">Runtime (ms) =</span>
+                <span class="info-label">Runtime =</span>
                 <span class="info-value">{{ getNodeStats(selectedNode).runtime }}</span>
-              </div>
-              <div class="operator-info-line">
-                <span class="info-label">Selectivity =</span>
-                <span class="info-value">{{ getNodeStats(selectedNode).selectivity }}</span>
               </div>
               <div class="operator-info-line">
                 <span class="info-label">Cardinality (#paths) =</span>
                 <span class="info-value">{{ getNodeStats(selectedNode).cardinality }}</span>
               </div>
               <div class="operator-info-line">
-                <span class="info-label">Throughput (paths/ms) =</span>
+                <span class="info-label">Throughput (paths/s) =</span>
                 <span class="info-value">{{ getNodeStats(selectedNode).throughput }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Help Modal Popup Overlay -->
+          <div v-if="showStatsHelp" class="help-modal-overlay" @click.self="showStatsHelp = false">
+            <div class="help-modal-card">
+              <div class="help-modal-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" style="width: 0.85rem; height: 0.85rem; color: var(--accent-primary, #3b82f6);">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                  <h3 style="margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Metric Definitions</h3>
+                </div>
+                <button class="help-modal-close" @click="showStatsHelp = false">&times;</button>
+              </div>
+              <div class="help-modal-body">
+                <div class="help-item">
+                  <span class="help-title">Runtime</span>
+                  <p class="help-description">The time required to complete the execution of an operation or query.</p>
+                </div>
+                <div class="help-item">
+                  <span class="help-title">Cardinality</span>
+                  <p class="help-description">The estimated or actual number of solutions. In our case, is the number of paths returned by an operator or query. Cardinality = Total Input Rows &times; Selectivity. For example: <em>"The cardinality of this join is 500 rows."</em></p>
+                </div>
+                <div class="help-item">
+                  <span class="help-title">Throughput</span>
+                  <p class="help-description">The total number of operations or queries a system can process within a specific time period. In our case, it is the number of solutions (paths) produced per second.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -740,5 +824,100 @@ const parsePathCell = (cell) => {
 
 .active-filter {
     color: #3b82f6 !important;
+}
+
+/* Help Modal Styles */
+.help-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.help-modal-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.help-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.help-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.25rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.help-modal-close:hover {
+    color: var(--text-primary);
+    background: rgba(0,0,0,0.05);
+}
+
+.help-modal-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.help-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.help-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent-primary, #3b82f6);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+}
+
+.help-description {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    text-align: left;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 </style>

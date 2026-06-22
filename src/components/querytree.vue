@@ -108,6 +108,11 @@ const renderTree = () => {
         if (params.nodes.length > 0) {
             const nodeId = params.nodes[0];
             const node = data.nodes.get(nodeId);
+            const cleanLabel = (node?.label || '').replace(/<[^>]*>/g, '').toLowerCase();
+            if (cleanLabel.includes('paths₁') || cleanLabel.includes('paths₀') || cleanLabel.includes('paths(')) {
+                network.unselectAll();
+                return;
+            }
             emit('node-select', node);
         } else {
             emit('node-select', null);

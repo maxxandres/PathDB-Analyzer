@@ -14,6 +14,7 @@
                             class="header-query-input"
                             :schemaData="SCHEMA_DATA"
                             placeholder="Enter PathDB query..."
+                            @submit="runQuery"
                             @keyup.enter.ctrl="runQuery"
                         />
                     </div>
@@ -49,10 +50,11 @@
             </div>
             <div class="header-actions">
                 <div class="header-actions-top">
-                    <!-- Theme Toggle -->
+                    <!-- Theme Toggle
                     <button class="action-btn" @click="$emit('toggle-theme')" :title="theme === 'light' ? 'Dark Mode' : 'Light Mode'">
                         <i :data-lucide="theme === 'light' ? 'moon' : 'sun'" class="icon-small"></i>
                     </button>
+                    -->
                     
                     <!-- Logout -->
                     <button class="action-btn logout-btn" @click="$emit('logout')" title="Logout">
@@ -291,9 +293,18 @@
                     <div v-show="activeCardIndex < 3" class="tree-card-content">
                         <!-- Left: Main Tree Column (Active for 0, 1, 2) -->
                         <div class="comparison-column component-card" style="flex: 1.2;">
-                            <div class="column-header" v-if="activeCardIndex < 3">
-                                <i :data-lucide="activeCardIndex === 0 ? 'git-commit' : (activeCardIndex === 1 ? 'zap' : 'layers')" class="icon-xtiny"></i>
-                                {{ cardTitles[activeCardIndex] }}
+                            <div class="column-header" v-if="activeCardIndex < 3" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <i :data-lucide="activeCardIndex === 0 ? 'git-commit' : (activeCardIndex === 1 ? 'zap' : 'layers')" class="icon-xtiny"></i>
+                                    {{ cardTitles[activeCardIndex] }}
+                                    <button @click="showAlgebraHelp = true" title="Show Algebra Glossary" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; display: inline-flex; align-items: center; padding: 0.1rem; border-radius: 4px; transition: all 0.2s; margin-left: 0.2rem;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" style="width: 0.85rem; height: 0.85rem;">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Mini Canvas Area -->
@@ -386,27 +397,30 @@
                     </div>
 
                     <div v-if="activeCardIndex === 8" class="comparison-view card-layout-container">
-                        <div class="comparison-column component-card" style="flex: 2;">
+                        <div class="comparison-column component-card" style="flex: 1; position: relative;">
+                            <!-- Loading Spinner Overlay -->
+                            <div v-if="isLoading" class="query-loading-overlay">
+                                <div class="query-spinner"></div>
+                                <span class="query-loading-text">Executing query...</span>
+                            </div>
                             <div class="column-header" style="margin-bottom: 0; display: flex; align-items: center; justify-content: space-between;">
                                 <div style="display: flex; align-items: center; gap: 0.4rem;">
                                     <i data-lucide="table" class="icon-xtiny"></i>
                                     Query Results
                                 </div>
-                                <span v-if="resultsTableData.rows && resultsTableData.rows.length > 0"
-                                      style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 9999px; padding: 0.1rem 0.6rem;">
-                                    {{ resultsTableData.rows.length }} result{{ resultsTableData.rows.length !== 1 ? 's' : '' }}
-                                </span>
+                                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                    <span v-if="!isLoading && resultsTableData.rows && resultsTableData.rows.length > 0"
+                                          style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 9999px; padding: 0.1rem 0.6rem;">
+                                        {{ resultsTableData.rows.length }} result{{ resultsTableData.rows.length !== 1 ? 's' : '' }}
+                                    </span>
+                                </div>
                             </div>
                             <ResultsTable 
+                                v-if="!isLoading"
                                 :tableData="resultsTableData"
+                                :queryError="queryError"
                                 @open-sequence="handleTablePathSequence"
                                 @cell-select="handleTableCellSelect"
-                            />
-                        </div>
-                       
-                        <div v-if="selectedTableSequence.length > 0" class="comparison-column component-card" style="flex: 1.1;">
-                            <PathObjectViewer 
-                                :sequence="selectedTableSequence"
                             />
                         </div>
                     </div>
@@ -414,9 +428,11 @@
                     <!-- Comparison View (3) -->
                     <div v-if="activeCardIndex === 3" class="comparison-view card-layout-container">
                         <div class="comparison-column component-card">
-                            <div class="column-header">
-                                <i data-lucide="git-commit" class="icon-xtiny"></i>
-                                Raw Logical Tree
+                            <div class="column-header" style="display: flex; align-items: center; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <i data-lucide="git-commit" class="icon-xtiny"></i>
+                                    Raw Logical Tree
+                                </div>
                             </div>
                             <div class="tree-wrapper mini-canvas">
                                 <QueryTree :treeData="logicalTreeData" :ref="el => setTreeRef(el, 40)" @node-select="n => handleNodeSelect(n, 0)" />
@@ -424,9 +440,11 @@
                         </div>
                        
                         <div class="comparison-column component-card">
-                            <div class="column-header">
-                                <i data-lucide="zap" class="icon-xtiny"></i>
-                                Optimized Tree
+                            <div class="column-header" style="display: flex; align-items: center; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <i data-lucide="zap" class="icon-xtiny"></i>
+                                    Optimized Tree
+                                </div>
                             </div>
                             <div class="tree-wrapper mini-canvas">
                                 <QueryTree :treeData="optimizedTreeData" :ref="el => setTreeRef(el, 41)" @node-select="n => handleNodeSelect(n, 1)" />
@@ -437,9 +455,11 @@
                     <!-- Comparison View (4) Optimized vs Physical -->
                     <div v-if="activeCardIndex === 4" class="comparison-view card-layout-container">
                         <div class="comparison-column component-card">
-                            <div class="column-header">
-                                <i data-lucide="zap" class="icon-xtiny"></i>
-                                Optimized Tree
+                            <div class="column-header" style="display: flex; align-items: center; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <i data-lucide="zap" class="icon-xtiny"></i>
+                                    Optimized Tree
+                                </div>
                             </div>
                             <div class="tree-wrapper mini-canvas">
                                 <QueryTree :treeData="optimizedTreeData" :ref="el => setTreeRef(el, 42)" @node-select="n => handleNodeSelect(n, 1)" />
@@ -447,9 +467,11 @@
                         </div>
                        
                         <div class="comparison-column component-card">
-                            <div class="column-header">
-                                <i data-lucide="layers" class="icon-xtiny"></i>
-                                Physical Tree
+                            <div class="column-header" style="display: flex; align-items: center; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <i data-lucide="layers" class="icon-xtiny"></i>
+                                    Physical Tree
+                                </div>
                             </div>
                             <div class="tree-wrapper mini-canvas">
                                 <QueryTree :treeData="physicalTreeData" :ref="el => setTreeRef(el, 43)" @node-select="n => handleNodeSelect(n, 2)" />
@@ -472,7 +494,7 @@
                         <template v-if="logicalTreeData">
                             <div class="excel-tab" :class="{ 'active': activeCardIndex === 5 }" @click="activeCardIndex = 5">
                                 <i data-lucide="bar-chart-2" class="tab-icon"></i>
-                                <span>Statistics</span>
+                                <span>Query Statistics</span>
                             </div>
                             <div class="excel-tab" :class="{ 'active': activeCardIndex === 8 }" @click="activeCardIndex = 8">
                                 <i data-lucide="table" class="tab-icon"></i>
@@ -501,10 +523,83 @@
                         </template>
                     </div>
 
+          <!-- Help Modal Popup Overlay -->
+          <div v-if="showStatsHelp" class="help-modal-overlay" @click.self="showStatsHelp = false" style="z-index: 99999;">
+            <div class="help-modal-card">
+              <div class="help-modal-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" style="width: 0.85rem; height: 0.85rem; color: var(--accent-primary, #3b82f6);">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                  <h3 style="margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Metric Definitions</h3>
                 </div>
+                <button class="help-modal-close" @click="showStatsHelp = false">&times;</button>
+              </div>
+              <div class="help-modal-body">
+                <div class="help-item">
+                  <span class="help-title">Runtime</span>
+                  <p class="help-description">The time required to complete the execution of an operation or query.</p>
+                </div>
+                <div class="help-item">
+                  <span class="help-title">Cardinality</span>
+                  <p class="help-description">The estimated or actual number of solutions. In our case, is the number of paths returned by an operator or query. Cardinality = Total Input Rows &times; Selectivity. For example: <em>"The cardinality of this join is 500 rows."</em></p>
+                </div>
+                <div class="help-item">
+                  <span class="help-title">Throughput</span>
+                  <p class="help-description">The total number of operations or queries a system can process within a specific time period. In our case, it is the number of solutions (paths) produced per second.</p>
+                </div>
+              </div>
             </div>
-        </main>
-    </div>
+          </div>
+
+          <!-- Algebra Glossary Help Modal Popup Overlay -->
+          <div v-if="showAlgebraHelp" class="help-modal-overlay" @click.self="showAlgebraHelp = false" style="z-index: 99999;">
+            <div class="help-modal-card">
+              <div class="help-modal-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle" style="width: 0.85rem; height: 0.85rem; color: var(--accent-primary, #3b82f6);">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                  <h3 style="margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Algebra Glossary</h3>
+                </div>
+                <button class="help-modal-close" @click="showAlgebraHelp = false">&times;</button>
+              </div>
+              <div class="help-modal-body">
+                <div class="help-item">
+                  <span class="help-title" style="font-size: 1.1rem; text-transform: none; font-weight: 800; color: #3b82f6;">Paths₀ / Paths₁</span>
+                  <p class="help-description"><strong>Paths Operator:</strong> Retrieves the initial set of nodes (Paths₀) or edges (Paths₁) from the graph database.</p>
+                </div>
+                <div class="help-item" style="border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
+                  <span class="help-title" style="font-size: 1.1rem; text-transform: none; font-weight: 800; color: #3b82f6;">σ (Sigma)</span>
+                  <p class="help-description"><strong>Selection Operator:</strong> Filters paths based on specific criteria or predicates (e.g., matching a particular label or property value).</p>
+                </div>
+                <div class="help-item" style="border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
+                  <span class="help-title" style="font-size: 1.1rem; text-transform: none; font-weight: 800; color: #3b82f6;">φ / Φ (Phi)</span>
+                  <p class="help-description"><strong>Kleene Operator:</strong> Computes paths of arbitrary length by recursively repeating a subpath expression (representing path patterns with * or +).</p>
+                </div>
+                <div class="help-item" style="border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
+                  <span class="help-title" style="font-size: 1.1rem; text-transform: none; font-weight: 800; color: #3b82f6;">⋈ (Join)</span>
+                  <p class="help-description"><strong>Join Operator:</strong> Combines or concatenates two sets of paths where the target node of one path matches the source node of another.</p>
+                </div>
+                <div class="help-item" style="border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
+                  <span class="help-title" style="font-size: 1.1rem; text-transform: none; font-weight: 800; color: #3b82f6;">∪ (Union)</span>
+                  <p class="help-description"><strong>Union Operator:</strong> Combines the results of two different path sub-queries, merging them into a single unified set of paths.</p>
+                </div>
+                <div class="help-item" style="border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
+                  <span class="help-title" style="font-size: 1.1rem; text-transform: none; font-weight: 800; color: #3b82f6;">π (Pi)</span>
+                  <p class="help-description"><strong>Projection Operator:</strong> Transforms or projects the output paths, retaining only specific fields, nodes, or formats for final presentation.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 </template>
 
 <script setup>
@@ -518,16 +613,36 @@ import GraphSchemaPath from './GraphSchemaPath.vue';
 import ResultsTable from './ResultsTable.vue';
 import PathObjectViewer from './PathObjectViewer.vue';
 import { api } from '../services/api';
+import { validateRPQ, formatValidationErrors } from '../utils/rpq-validator.js';
 
 const props = defineProps(['session', 'theme']);
 const emit = defineEmits(['node-select', 'logout', 'toggle-theme']);
 
 const queryInput = ref('   ');
 const isLoading = ref(false);
+const queryError = ref(null);
 const noLimit = ref(false);  // when true, strips LIMIT clause from query
 
 const activeCardIndex = ref(7); // Default: Visual Schema
 const cardTitles = ['Raw Logical Tree', 'Optimized Logical Tree', 'Physical Tree', 'Raw vs Optimized', 'Optimized vs Physical', 'Statistics', 'Graph Info', 'Visual Schema', 'Query Results'];
+
+const showStatsHelp = ref(false);
+watch(showStatsHelp, (newVal) => {
+    if (newVal) {
+        nextTick(() => {
+            if (window.lucide) window.lucide.createIcons();
+        });
+    }
+});
+
+const showAlgebraHelp = ref(false);
+watch(showAlgebraHelp, (newVal) => {
+    if (newVal) {
+        nextTick(() => {
+            if (window.lucide) window.lucide.createIcons();
+        });
+    }
+});
 
 // ─── Dynamic Schema Data ───────────────────────────────────
 const SCHEMA_DATA = ref({
@@ -689,43 +804,44 @@ const loadSchema = async (session) => {
     const frontendStart = performance.now();
     console.time('[PathDB] loadSchema (frontend parsing)');
     
-    if (response && response.success) {
-      const dbSchema = response.graphInfo || response;
-      
+    if (response && typeof response === 'object') {
+      // The response is a flat JSON with nodeSchema/edgeSchema as objects
+      // nodeSchema: { "Label": ["prop1", "prop2", ...], ... }
+      // edgeSchema: { "Label": ["prop1", ...], ... }
+      // edgeConnections: { "Label": [{ srcLabel, dstLabel, count }, ...], ... }
+
+      // Convert nodeSchema from { Label: string[] } to { Label: { prop: prop } } for downstream compatibility
       const nodeSchemaObj = {};
-      if (dbSchema.nodeSchema && Array.isArray(dbSchema.nodeSchema)) {
-        dbSchema.nodeSchema.forEach(node => {
-          if (node.label) nodeSchemaObj[node.label] = node.properties || {};
-        });
+      if (response.nodeSchema && typeof response.nodeSchema === 'object' && !Array.isArray(response.nodeSchema)) {
+        for (const [label, props] of Object.entries(response.nodeSchema)) {
+          const propsMap = {};
+          if (Array.isArray(props)) {
+            props.forEach(p => { propsMap[p] = p; });
+          }
+          nodeSchemaObj[label] = propsMap;
+        }
       }
       
-      let edgeConnectionsObj = {};
+      // Convert edgeSchema similarly
       const edgeSchemaObj = {};
-      if (dbSchema.edgeSchema && Array.isArray(dbSchema.edgeSchema)) {
-        dbSchema.edgeSchema.forEach(edge => {
-          if (edge.label) {
-            edgeSchemaObj[edge.label] = edge.properties || {};
-            const src = edge.source || edge.srcLabel || edge.src;
-            const dst = edge.target || edge.dstLabel || edge.dst;
-            if (src && dst) {
-              if (!edgeConnectionsObj[edge.label]) edgeConnectionsObj[edge.label] = [];
-              const exists = edgeConnectionsObj[edge.label].some(c => c.srcLabel === src && c.dstLabel === dst);
-              if (!exists) {
-                edgeConnectionsObj[edge.label].push({ srcLabel: src, dstLabel: dst });
-              }
-            }
+      if (response.edgeSchema && typeof response.edgeSchema === 'object' && !Array.isArray(response.edgeSchema)) {
+        for (const [label, props] of Object.entries(response.edgeSchema)) {
+          const propsMap = {};
+          if (Array.isArray(props)) {
+            props.forEach(p => { propsMap[p] = p; });
           }
-        });
+          edgeSchemaObj[label] = propsMap;
+        }
       }
 
       SCHEMA_DATA.value = {
-        nodeCount: response.nodeCount || dbSchema.nodeCount || 0,
-        edgeCount: response.edgeCount || dbSchema.edgeCount || 0,
-        nodeCountByLabel: response.nodeCountByLabel || dbSchema.nodeCountByLabel || {},
-        edgeCountByLabel: response.edgeCountByLabel || dbSchema.edgeCountByLabel || {},
+        nodeCount: response.nodeCount || 0,
+        edgeCount: response.edgeCount || 0,
+        nodeCountByLabel: response.nodeCountByLabel || {},
+        edgeCountByLabel: response.edgeCountByLabel || {},
         nodeSchema: nodeSchemaObj,
         edgeSchema: edgeSchemaObj,
-        edgeConnections: response.edgeConnections || dbSchema.edgeConnections || edgeConnectionsObj
+        edgeConnections: response.edgeConnections || {}
       };
     }
     
@@ -978,6 +1094,7 @@ const chartTypes = ref({});
 const sortAscending = ref({}); // per-metric sort toggle
 const aggregateNodes = ref(false);
 const overallQueryTime = ref(0); // Total query runtime (ms) set on each runQuery
+const backendLeafStats = ref(null); // Per-operator stats from backend metadata.leafStats
 
 const getMockNodeStats = (label) => {
     if (!label) return { runtime: 0, selectivity: 0, cardinality: 0, throughput: 0 };
@@ -990,8 +1107,15 @@ const getMockNodeStats = (label) => {
     return { runtime: 3, selectivity: 0.5, cardinality: 50, throughput: 16.6 };
 };
 
+const getActiveTreeData = () => {
+    if (activeCardIndex.value === 0) return logicalTreeData.value;
+    if (activeCardIndex.value === 1) return optimizedTreeData.value;
+    if (activeCardIndex.value === 2) return physicalTreeData.value;
+    return null;
+};
+
 const getNodeStats = (node) => {
-    if (!node) return { runtime: 0, selectivity: 0, cardinality: 0, throughput: 0 };
+    if (!node) return { runtime: '0 ms', cardinality: 0, throughput: 0 };
     
     // Determine where the metadata is located
     let res = node.apiResults;
@@ -1003,42 +1127,105 @@ const getNodeStats = (node) => {
     const po = meta?.po;
     const mock = getMockNodeStats(node.label);
     
-    if (!meta) return mock;
-    
-    let runtimeVal = mock.runtime;
-    let numericTime = po?.runningTimeMS;
+    let num = 0;
+    let hasRealTime = false;
     
     if (meta?.time !== undefined) {
-        runtimeVal = meta.time;
-        // If it comes as a string with a comma, replace with dot
         const parsedTime = parseFloat(String(meta.time).replace(',', '.'));
-        if (!isNaN(parsedTime) && parsedTime > 0) {
-            numericTime = parsedTime;
+        if (!isNaN(parsedTime)) {
+            num = parsedTime;
+            hasRealTime = true;
         }
     } else if (po?.runningTimeMS !== undefined) {
-        runtimeVal = po.runningTimeMS;
-        numericTime = po.runningTimeMS;
+        num = po.runningTimeMS;
+        hasRealTime = true;
     }
-
-    if (numericTime === 0 || numericTime === undefined) {
-        // Fallback to avoid division by zero
-        numericTime = 1;
+    
+    if (!hasRealTime) {
+        num = mock.runtime;
+    }
+    
+    // Calculate Children Time Sum
+    let childrenTimeSum = 0;
+    const treeData = getActiveTreeData();
+    if (treeData && treeData.edges && treeData.nodes) {
+        const childIds = treeData.edges
+            .filter(e => e.from === node.id)
+            .map(e => e.to);
+        
+        childIds.forEach(cId => {
+            const childNode = treeData.nodes.find(n => n.id === cId);
+            if (childNode) {
+                let childRes = childNode.apiResults;
+                if (childRes && childRes.type === 'join') {
+                    childRes = childRes[activeJoinTab.value];
+                }
+                const childMeta = childRes?.metadata;
+                const childPo = childMeta?.po;
+                
+                let childTime = 0;
+                let hasChildRealTime = false;
+                if (childMeta?.time !== undefined) {
+                    const parsed = parseFloat(String(childMeta.time).replace(',', '.'));
+                    if (!isNaN(parsed)) {
+                        childTime = parsed;
+                        hasChildRealTime = true;
+                    }
+                } else if (childPo?.runningTimeMS !== undefined) {
+                    childTime = childPo.runningTimeMS;
+                    hasChildRealTime = true;
+                }
+                
+                if (!hasChildRealTime) {
+                    childTime = 0; // Leaf/Scan nodes with no metadata count as 0 ms
+                }
+                
+                if (!isNaN(childTime) && childTime > 0) {
+                    childrenTimeSum += childTime;
+                }
+            }
+        });
+    }
+    
+    const diff = num - childrenTimeSum;
+    let netTimeNum = diff;
+    if (netTimeNum <= 0 && num > 0) {
+        netTimeNum = Math.max(0.01, num * 0.05);
+    } else {
+        netTimeNum = Math.max(0, netTimeNum);
+    }
+    
+    // Format netTimeNum to string with appropriate unit (ms/s)
+    let formattedRuntime = '';
+    if (netTimeNum === 0) {
+        formattedRuntime = '0 ms';
+    } else if (netTimeNum >= 100) {
+        formattedRuntime = parseFloat((netTimeNum / 1000).toFixed(2)).toString().replace('.', ',') + ' s';
+    } else {
+        formattedRuntime = parseFloat(netTimeNum.toFixed(2)).toString().replace('.', ',') + ' ms';
     }
     
     let cardinalityVal = mock.cardinality;
-    if (po?.calculatedPaths !== undefined) {
+    if (po?.returnedPaths !== undefined) {
+        cardinalityVal = po.returnedPaths;
+    } else if (po?.calculatedPaths !== undefined) {
         cardinalityVal = po.calculatedPaths;
     } else if (meta?.totalPaths !== undefined) {
         cardinalityVal = meta.totalPaths;
+    } else if (res?.data && Array.isArray(res.data)) {
+        cardinalityVal = Math.max(0, res.data.length - 1);
+    }
+    
+    let throughputVal = Math.round(mock.throughput);
+    if (cardinalityVal !== undefined && netTimeNum > 0) {
+        const rawThroughput = (cardinalityVal / netTimeNum) * 1000; // Convert to paths/second
+        throughputVal = Math.round(rawThroughput);
     }
     
     return {
-        runtime: runtimeVal,
-        selectivity: mock.selectivity, // Backend doesn't provide selectivity in po yet
+        runtime: formattedRuntime,
         cardinality: cardinalityVal,
-        throughput: (cardinalityVal !== undefined && numericTime > 0) 
-            ? parseFloat((cardinalityVal / numericTime).toFixed(2)) 
-            : mock.throughput
+        throughput: throughputVal
     };
 };
 
@@ -1048,20 +1235,42 @@ const stripHtml = (html) => {
 };
 
 const buildRealStatsFromTree = () => {
-    // Columns: Operator | Input (#Paths) | Cardinality (#Paths) | Selectivity | Runtime (ms) | Throughput (paths/ms)
-    const headers = ['Operator', 'Input (#Paths)', 'Cardinality (#Paths)', 'Selectivity', 'Runtime (ms)', 'Throughput (paths/ms)'];
+    // Columns: Operator | Cardinality (#Paths) | Runtime | Throughput (paths/s)
+    const headers = ['Operator', 'Cardinality (#Paths)', 'Runtime', 'Throughput (paths/s)'];
     const rows = [];
 
-    // Use the logical tree as requested ("Los datos son los del logical tree")
+    // ─── PRIMARY SOURCE: Use backend leafStats when available ─────────
+    // The backend returns a flat array of per-operator stats (leafStats)
+    // with real measured times — no estimation needed.
+    const leafStats = backendLeafStats.value;
+    if (Array.isArray(leafStats) && leafStats.length > 0) {
+        leafStats.forEach(stat => {
+            const runtime = stat.runningTimeMS ?? 0;
+            const returnedPaths = stat.returnedPaths ?? 0;
+
+            const throughput = (runtime > 0 && returnedPaths > 0)
+                ? Math.round((returnedPaths / runtime) * 1000)
+                : 0;
+
+            rows.push([
+                stat.typeStatistics || 'Unknown',
+                returnedPaths,
+                parseFloat(runtime.toFixed(4)),
+                throughput
+            ]);
+        });
+
+        return { headers, rows };
+    }
+
+    // ─── FALLBACK: Estimate from logical tree PO enrichment ──────────
     const treeData = logicalTreeData.value;
     if (!treeData || !treeData.nodes || treeData.nodes.length === 0) {
         return { headers, rows };
     }
 
-    // Use the overall query time stored at runQuery time (reliable, not from tree root lookup)
     const queryTime = overallQueryTime.value;
 
-    // First pass: collect raw PO stats from each logical node
     const rawRows = [];
     let totalReportedTime = 0;
     let unaccountedPaths = 0;
@@ -1072,7 +1281,6 @@ const buildRealStatsFromTree = () => {
 
         let runtime = po?.runningTimeMS ?? 0;
         
-        // Use PO stats if available, otherwise fallback to counting apiResults.data rows
         let inputPaths = 0;
         let cardinality = 0;
 
@@ -1080,10 +1288,8 @@ const buildRealStatsFromTree = () => {
             inputPaths = po.calculatedPaths ?? 0;
             cardinality = po.returnedPaths ?? 0;
         } else if (node.apiResults?.data && Array.isArray(node.apiResults.data)) {
-            // Fallback: If mapping failed but we have data, use the data length
-            // Subtract 1 for the header row
             cardinality = Math.max(0, node.apiResults.data.length - 1);
-            inputPaths = cardinality; // Best estimate
+            inputPaths = cardinality;
         }
 
         totalReportedTime += runtime;
@@ -1094,38 +1300,27 @@ const buildRealStatsFromTree = () => {
         rawRows.push({ cleanLabel, runtime, inputPaths, cardinality });
     });
 
-    // Calculate time to distribute among nodes reporting 0ms
     const remainingTime = Math.max(0, queryTime - totalReportedTime);
 
-    // Second pass: Finalize stats and distribute remaining time
     rawRows.forEach(row => {
         let runtime = row.runtime;
         
         if (runtime === 0 && remainingTime > 0 && unaccountedPaths > 0) {
-            // Proportional slice of the remaining unaccounted time
             runtime = parseFloat(((row.inputPaths / unaccountedPaths) * remainingTime).toFixed(6));
         } else if (totalReportedTime === 0 && queryTime > 0) {
-            // Fallback: If EVERYTHING is 0, distribute total time among all nodes
             const totalPaths = rawRows.reduce((sum, r) => sum + r.inputPaths, 0);
             if (totalPaths > 0) {
                 runtime = parseFloat(((row.inputPaths / totalPaths) * queryTime).toFixed(6));
             }
         }
 
-        const selectivity = (row.inputPaths > 0)
-            ? parseFloat((row.cardinality / row.inputPaths).toFixed(4))
-            : 0;
-
         const throughput = (runtime > 0 && row.cardinality > 0)
-            ? parseFloat((row.cardinality / runtime).toFixed(2))
+            ? Math.round((row.cardinality / runtime) * 1000)
             : 0;
 
-        // Order: Operator | Input (#Paths) | Cardinality (#Paths) | Selectivity | Runtime (ms) | Throughput
         rows.push([
             row.cleanLabel,
-            row.inputPaths,
             row.cardinality,
-            selectivity,
             runtime,
             throughput
         ]);
@@ -1160,7 +1355,18 @@ const reDrawCharts = () => {
     const data = processChartData();
     chartDataRef.value = data;
     if (data && data.headers) {
-        statsMetrics.value = data.headers.slice(1); // All except 'Operator'
+        const metrics = data.headers.slice(1);
+        metrics.forEach(metric => {
+            if (chartTypes.value[metric] === undefined) {
+                const lower = metric.toLowerCase();
+                if (lower.includes('runtime') || lower.includes('cardinality')) {
+                    chartTypes.value[metric] = 'pie';
+                } else {
+                    chartTypes.value[metric] = 'bar';
+                }
+            }
+        });
+        statsMetrics.value = metrics;
     }
 };
 
@@ -1169,7 +1375,18 @@ const openStatsModal = () => {
     const data = processChartData();
     chartDataRef.value = data;
     if (data && data.headers) {
-        statsMetrics.value = data.headers.slice(1);
+        const metrics = data.headers.slice(1);
+        metrics.forEach(metric => {
+            if (chartTypes.value[metric] === undefined) {
+                const lower = metric.toLowerCase();
+                if (lower.includes('runtime') || lower.includes('cardinality')) {
+                    chartTypes.value[metric] = 'pie';
+                } else {
+                    chartTypes.value[metric] = 'bar';
+                }
+            }
+        });
+        statsMetrics.value = metrics;
     }
     nextTick(() => {
         if (window.lucide) window.lucide.createIcons();
@@ -1498,6 +1715,12 @@ const toggleRow = (index) => {
 }
 
 const handleNodeSelect = (node, index) => {
+    if (node && node.label) {
+        const cleanLabel = node.label.replace(/<[^>]*>/g, '').toLowerCase();
+        if (cleanLabel.includes('paths₁') || cleanLabel.includes('paths₀') || cleanLabel.includes('paths(')) {
+            return;
+        }
+    }
     const idx = index !== undefined ? index : activeCardIndex.value;
     if (idx === 0) selectedLogicalNode.value = node;
     else if (idx === 1) selectedOptimizedNode.value = node;
@@ -2603,7 +2826,9 @@ const parsePathCell = (cell) => {
 const runQuery = async () => {
     if (!queryInput.value.trim()) return;
 
+    queryError.value = null;
     isLoading.value = true;
+    activeCardIndex.value = 8;
     selectedLogicalNode.value = null; 
     selectedOptimizedNode.value = null; 
     selectedPhysicalNode.value = null;
@@ -2616,6 +2841,14 @@ const runQuery = async () => {
 
         // Apply noLimit: strip any existing LIMIT clause and skip adding one
         let effectiveQuery = queryInput.value.trim();
+
+        // Frontend RPQ validation
+        const validation = validateRPQ(effectiveQuery);
+        if (!validation.valid) {
+            queryError.value = formatValidationErrors(effectiveQuery, validation.errors);
+            isLoading.value = false;
+            return;
+        }
         if (noLimit.value) {
             effectiveQuery = effectiveQuery.replace(/\bLIMIT\s+\d+/gi, '').trim();
         }
@@ -2629,10 +2862,13 @@ const runQuery = async () => {
         } catch (e) {
             console.warn("Failed to fetch raw plan", e);
         }
-
         // 2. Execute the query LAST so the backend context is always left in the
         //    correct state for the next run (executeQuery cleans up after itself)
         const queryResults = await api.executeQuery(effectiveQuery, loginToken, sessionToken);
+        if (queryResults && queryResults.metadata && queryResults.metadata.time !== undefined) {
+            const t = parseFloat(String(queryResults.metadata.time).replace(',', '.'));
+            queryResults.metadata.time = isNaN(t) ? 0 : t * 1000;
+        }
 
         // 3. Transform plans
         // Logical Tree (Card 0) uses rawPlan (unoptimized) if available
@@ -2669,12 +2905,11 @@ const runQuery = async () => {
         const physicalRoot = attachResultsToRoot(transformedPhysical, true);
 
         // Store overall query time for statistics (reliable single source of truth)
-        if (queryResults?.metadata?.time !== undefined) {
-            const t = parseFloat(String(queryResults.metadata.time).replace(',', '.'));
-            overallQueryTime.value = isNaN(t) ? 0 : t;
-        } else {
-            overallQueryTime.value = 0;
-        }
+        overallQueryTime.value = queryResults?.metadata?.time || 0;
+
+        // Store per-operator stats from backend (leafStats)
+        backendLeafStats.value = queryResults?.metadata?.leafStats || null;
+        console.log('[PathDB] leafStats from backend:', backendLeafStats.value);
 
         // 4. Auto-enrich logical tree nodes from metadata.po
         // We enrich the MAIN logical tree as that's what the Statistics card uses
@@ -2708,6 +2943,7 @@ const runQuery = async () => {
             }, 100);
         });
     } catch (e) {
+        queryError.value = e.message || 'An unknown error occurred while executing the query.';
         logicalTreeData.value = { nodes: [{ id: 1, label: "Error", color: { background: '#ffffff' }, properties: { Error: e.message } }], edges: [] };
         physicalTreeData.value = { nodes: [{ id: 1, label: "Error", color: { background: '#ffffff' }, properties: { Error: e.message } }], edges: [] };
         optimizedTreeData.value = { nodes: [{ id: 1, label: "Error", color: { background: '#ffffff' }, properties: { Error: e.message } }], edges: [] };
@@ -3145,11 +3381,21 @@ const enrichLogicalTreeFromPO = (logicalTree, poRoot) => {
             if (label.includes('label') || label.includes('edge')) return 'selectionByLabel';
             return 'selection';
         }
+        if (label.includes('φ') || label.includes('Φ') || name.includes('recursive') || name.includes('kleene')) return 'recursive';
         if (label.includes('⋈') || label.includes('trail') || name.includes('join') || name.includes('trail')) return 'join';
         if (label.includes('∪') || name.includes('union')) return 'union';
-        if (label.includes('φ') || label.includes('Φ') || name.includes('recursive') || name.includes('kleene')) return 'recursive';
         if (label.includes('π') || name.includes('projection')) return 'projection';
         return 'unknown';
+    };
+
+    // Helper to extract specific label/scan identifiers from logical node
+    const getLogicalNodeDetails = (node) => {
+        const label = node.label || '';
+        const match = label.match(/=\s*([A-Za-z0-9_]+)/);
+        if (match) return match[1].trim();
+        if (label.includes('Paths₀') || label.includes('Paths0')) return 'Paths0';
+        if (label.includes('Paths₁') || label.includes('Paths1')) return 'Paths1';
+        return '';
     };
 
     // 3. Map PO type strings to logical types
@@ -3157,7 +3403,7 @@ const enrichLogicalTreeFromPO = (logicalTree, poRoot) => {
         const type = (poNode.typeStatistics || poNode.type || poNode.name || '').toLowerCase();
         if (type.includes('selectionbylabel')) return 'selectionByLabel';
         if (type.includes('selection')) return 'selection';
-        if (type.includes('scan') || type.includes('paths')) return 'scan';
+        if (type.includes('scan') || type.includes('paths') || type.includes('allnodes') || type.includes('alledges')) return 'scan';
         if (type.includes('join')) return 'join';
         if (type.includes('union')) return 'union';
         if (type.includes('recursive') || type.includes('kleene')) return 'recursive';
@@ -3176,23 +3422,71 @@ const enrichLogicalTreeFromPO = (logicalTree, poRoot) => {
         const logicalType = getLogicalType(logicalNode);
         if (logicalType === 'projection' || logicalType === 'unknown') return; // Projection is frontend-only
 
-        // Find the first unconsumed PO node that matches type
-        const matchIdx = flatPO.findIndex((po, idx) => {
-            if (consumed.has(idx)) return false;
-            return getPOLogicalType(po) === logicalType;
-        });
+        // Find the FIRST matching, unconsumed PO node
+        let matchedPO = null;
+        for (let idx = 0; idx < flatPO.length; idx++) {
+            if (consumed.has(idx)) continue;
+            
+            const po = flatPO[idx];
+            const poType = getPOLogicalType(po);
+            if (poType !== logicalType) continue;
 
-        if (matchIdx !== -1) {
-            consumed.add(matchIdx);
-            const po = flatPO[matchIdx];
+            // Details-based matching for selectionByLabel
+            if (logicalType === 'selectionByLabel') {
+                const logicalDetail = getLogicalNodeDetails(logicalNode);
+                const poDetail = po.details || '';
+                // If logical has a specific detail, it must match the PO detail
+                if (logicalDetail) {
+                    if (poDetail && logicalDetail.toLowerCase() === poDetail.toLowerCase()) {
+                        matchedPO = po;
+                        consumed.add(idx);
+                        break;
+                    }
+                } else {
+                    // Sibling nodes or general selection without details can match first available
+                    matchedPO = po;
+                    consumed.add(idx);
+                    break;
+                }
+            }
+            // Details-based matching for scan
+            else if (logicalType === 'scan') {
+                const logicalDetail = getLogicalNodeDetails(logicalNode);
+                const poDetail = po.details || '';
+                if (logicalDetail) {
+                    const isPaths0 = logicalDetail.toLowerCase() === 'paths0';
+                    const isPaths1 = logicalDetail.toLowerCase() === 'paths1';
+                    const isPONodes = poDetail.toLowerCase().includes('allnodes') || poDetail.toLowerCase() === 'paths0';
+                    const isPOEdges = poDetail.toLowerCase().includes('alledges') || poDetail.toLowerCase() === 'paths1';
+                    if ((isPaths0 && isPONodes) || (isPaths1 && isPOEdges)) {
+                        matchedPO = po;
+                        consumed.add(idx);
+                        break;
+                    }
+                } else {
+                    matchedPO = po;
+                    consumed.add(idx);
+                    break;
+                }
+            }
+            // For other types (like Join, Union, Recursive)
+            else {
+                matchedPO = po;
+                consumed.add(idx);
+                break;
+            }
+        }
+
+        // If we found a match, associate it
+        if (matchedPO) {
             logicalNode.apiResults = {
                 ...(logicalNode.apiResults || {}),
                 success: true,
                 metadata: {
                     ...(logicalNode.apiResults?.metadata || {}),
-                    po: po,
-                    time: po.runningTimeMS,
-                    totalPaths: po.calculatedPaths
+                    po: matchedPO,
+                    time: matchedPO.runningTimeMS || 0,
+                    totalPaths: matchedPO.calculatedPaths || 0
                 }
             };
         }
@@ -3213,3 +3507,123 @@ onMounted(() => {
 </script>
 
 <style src="../assets/home.css"></style>
+
+<style scoped>
+/* Help Modal Styles */
+.help-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: fadeIn 0.2s ease-out;
+}
+.help-modal-card {
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.help-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    background: var(--bg-secondary, #f8fafc);
+}
+.help-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary, #64748b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    transition: all 0.2s;
+}
+.help-modal-close:hover {
+    background: var(--border-color, #e2e8f0);
+    color: var(--text-primary, #0f172a);
+}
+.help-modal-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+.help-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.help-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary, #0f172a);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.help-description {
+    margin: 0;
+    font-size: 0.825rem;
+    color: var(--text-secondary, #475569);
+    line-height: 1.5;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes scaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Query Loading Spinner */
+.query-loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    background: var(--bg-primary, #ffffff);
+    border-radius: inherit;
+    animation: fadeIn 0.2s ease;
+}
+.query-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid var(--border-color, #e2e8f0);
+    border-top-color: var(--accent-primary, #3b82f6);
+    border-radius: 50%;
+    animation: spinRotate 0.8s linear infinite;
+}
+.query-loading-text {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary, #64748b);
+    letter-spacing: 0.02em;
+}
+@keyframes spinRotate {
+    to { transform: rotate(360deg); }
+}
+</style>
