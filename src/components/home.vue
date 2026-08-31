@@ -1448,7 +1448,14 @@ const closeDbModal = () => {
 };
 
 const selectDatabase = async (dbName, dbIdx) => {
-    if (dbIdx === selectedDbIndex.value || !props.session) return;
+    if (!props.session) return;
+    
+    // If the user selects the database that is already fully active, just close the modal
+    if (dbIdx === selectedDbIndex.value && selectedDb.value === dbName) {
+        showDbModal.value = false;
+        return;
+    }
+
     dbModalLoading.value = true;
     dbLoadingMessage.value = `Switching to ${dbName}...`;
     try {

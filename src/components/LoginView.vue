@@ -8,8 +8,7 @@
 
     <div class="glass-card">
       <div class="card-header">
-        <h1 class="title">PathDB</h1>
-        <p class="subtitle">Demo </p>
+        <h1 class="title">PathDB Analyzer</h1>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">
